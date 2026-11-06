@@ -70,6 +70,10 @@ E.SEGMENTS = SEGMENTS_EN if VIDEO_LANG == "en" else SEGMENTS_HI
 if VIDEO_LANG == "en":
     E.LANG = "en-us"
     E.VOICE = os.environ.get("VOICE", "am_michael")
+    # English at 2x was too fast to follow: ~1.15x overall keeps every word clear
+    E.SPEED = float(os.environ.get("SPEED", "1.05"))
+    E.TEMPO = float(os.environ.get("TEMPO", "1.1"))
+    E.PAUSE_SCALE = float(os.environ.get("PAUSE_SCALE", "0.8"))
 
 ROOP = (79.73, 30.26)   # Roopkund (lon, lat)
 CRETE = (24.9, 35.2)

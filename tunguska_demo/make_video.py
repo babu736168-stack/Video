@@ -26,21 +26,23 @@ os.makedirs(OUT, exist_ok=True)
 # hi  = what the voice says (Devanagari gives correct pronunciation)
 # cap = on-screen Hinglish caption chunks; ALL-CAPS words / numbers are highlighted yellow
 SEGMENTS = [
-    dict(scene="map",   gap=0.4, hi="[slow] तीस जून… उन्नीस सौ आठ। | [soft] साइबेरिया का | [slow] घना जंगल…",
-         cap=["30 JUNE 1908...", "Siberia ka", "ghana JUNGLE."]),
-    dict(scene="sky",   gap=0.3, hi="सुबह सवा सात बजे… | [soft] आसमान में… | [slow] आग का एक | [punch] विशाल गोला!",
-         cap=["Subah sawa 7 baje...", "aasmaan mein...", "aag ka ek", "VISHAAL GOLA!"]),
-    dict(scene="sky",   gap=0.45, hi="[soft] और फिर… | [slow] एक ज़बरदस्त…",
-         cap=["Aur phir...", "ek zabardast..."]),
-    dict(scene="sky",   gap=0.65, hi="[punch] धमाका!", cap=["DHAMAKA!"], boom=True),
-    dict(scene="energy", gap=0.3, hi="ये हिरोशिमा बम से… | [punch] सैकड़ों गुना | ताक़तवर था।",
-         cap=["HIROSHIMA BOMB se...", "SAIKDON GUNA", "taakatwar tha."]),
-    dict(scene="trees", gap=0.35, hi="[fast] दो हज़ार वर्ग किलोमीटर में, | [slow] करीब आठ करोड़ पेड़… | ज़मीन पर | [punch] बिछ गए!",
-         cap=["2,000 sq km mein,", "kareeb 8 CRORE PED...", "zameen par", "BICHH GAYE!"]),
-    dict(scene="crater", gap=0.3, hi="[soft] लेकिन… | [slow] सबसे बड़ा रहस्य? | वहाँ कोई गड्ढा… | [punch] ही नहीं मिला!",
-         cap=["Lekin...", "sabse bada RAHASYA?", "Wahan koi GADDHA...", "hi NAHI MILA!"]),
-    dict(scene="end",   gap=2.2, hi="[soft] तो आखिर… | [slow] वहाँ फटा | [punch] क्या था?",
-         cap=["Toh aakhir...", "wahan PHATA", "KYA THA?"]),
+    # "|" separates COMPLETE sentences (or deliberate one-word cliffhangers like "और फिर…").
+    # Never split mid-clause (after का / पर / से): the voice drops its pitch there and sounds cut off.
+    # One caption chunk per piece.
+    dict(scene="map",   gap=0.4, hi="[slow] तीस जून, उन्नीस सौ आठ। | साइबेरिया का घना जंगल।",
+         cap=["30 JUNE 1908...", "Siberia ka ghana JUNGLE."]),
+    dict(scene="sky",   gap=0.3, hi="सुबह सवा सात बजे, आसमान में कुछ अजीब दिखा… | [punch] आग का एक विशाल गोला!",
+         cap=["Subah sawa 7 baje, aasmaan mein kuch AJEEB dikha...", "Aag ka ek VISHAAL GOLA!"]),
+    dict(scene="sky",   gap=0.65, hi="[soft] और फिर… | [punch] एक ज़बरदस्त धमाका!",
+         cap=["Aur phir...", "Ek zabardast DHAMAKA!"], boom=(1, 0.5)),  # boom halfway into chunk 1
+    dict(scene="energy", gap=0.3, hi="[slow] हिरोशिमा बम याद है? | [punch] ये उससे सैकड़ों गुना ताक़तवर था!",
+         cap=["HIROSHIMA BOMB yaad hai?", "Yeh usse SAIKDON GUNA taakatwar tha!"]),
+    dict(scene="trees", gap=0.35, hi="दो हज़ार वर्ग किलोमीटर का जंगल, तबाह हो गया। | [punch] करीब आठ करोड़ पेड़, ज़मीन पर बिछ गए!",
+         cap=["2,000 sq km jungle TABAAH ho gaya.", "Kareeb 8 CRORE PED zameen par BICHH GAYE!"]),
+    dict(scene="crater", gap=0.3, hi="[soft] लेकिन… | [slow] सबसे बड़ा रहस्य? | [punch] वहाँ कोई गड्ढा ही नहीं मिला!",
+         cap=["Lekin...", "Sabse bada RAHASYA?", "Wahan koi GADDHA hi NAHI MILA!"]),
+    dict(scene="end",   gap=2.2, hi="[soft] तो आखिर… | [punch] वहाँ फटा क्या था?",
+         cap=["Toh aakhir...", "Wahan PHATA KYA THA?"]),
 ]
 LEAD = 0.45
 VOICE = os.environ.get("VOICE", "hm_omega")
@@ -136,9 +138,9 @@ VOICE_FX = ("asetrate=24000*0.94,aresample=24000,atempo=1.0638,bass=g=4:f=120,"
             "equalizer=f=3000:t=q:w=1:g=3,acompressor=threshold=-20dB:ratio=4:attack=5:release=120:makeup=4,"
             "aecho=0.8:0.6:45|90:0.16|0.08")
 DRAMATIC = os.environ.get("DRAMATIC", "1") == "1"
-SPEED = float(os.environ.get("SPEED", "1.18"))         # global talking-speed multiplier
-PAUSE_SCALE = float(os.environ.get("PAUSE_SCALE", "0.5"))  # shrinks pauses between phrases/segments
-TEMPO = float(os.environ.get("TEMPO", "2.0"))  # final playback-speed of the narration (pitch preserved)
+SPEED = float(os.environ.get("SPEED", "1.45"))         # global talking-speed multiplier
+PAUSE_SCALE = float(os.environ.get("PAUSE_SCALE", "0.6"))  # shrinks pauses between phrases/segments
+TEMPO = float(os.environ.get("TEMPO", "1.6"))  # final playback-speed of the narration (pitch preserved)
 
 
 def parse_phrases(hi):
@@ -169,7 +171,11 @@ def tts_cached(k_holder, text, speed):
 
 
 def build_voice():
+    """Each "|" piece is a COMPLETE sentence (or a deliberate one-word cliffhanger), spoken in its
+    own TTS call so the intonation always finishes. Voice FX + speed-up are applied per piece, and the
+    dramatic pauses are inserted afterwards in real time, so they survive the speed-up."""
     kh = []
+    tmp_in, tmp_out = os.path.join(OUT, "tts", "_in.wav"), os.path.join(OUT, "tts", "_out.wav")
     for seg in SEGMENTS:
         pieces, bounds, pos = [], [], 0
         phrases = parse_phrases(seg["hi"])
@@ -178,45 +184,48 @@ def build_voice():
             speed, pause = round(speed * SPEED, 3), pause * PAUSE_SCALE
             w = trim_silence(tts_cached(kh, txt, speed))
             w = w / max(1e-6, np.abs(w).max()) * 0.8 * gain
+            if DRAMATIC:
+                sf.write(tmp_in, np.concatenate([w, np.zeros(int(0.25 * SR), np.float32)]), SR)
+                fx = VOICE_FX + (f",atempo={TEMPO}" if TEMPO != 1 else "")
+                subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", tmp_in, "-af", fx, "-ar", str(SR), tmp_out], check=True)
+                w = trim_silence(sf.read(tmp_out, dtype="float32")[0], 0.004)
             bounds.append((pos, pos + len(w)))
             pieces.append(w)
             pos += len(w)
             if j < len(phrases) - 1:
-                pieces.append(np.zeros(int(pause * SR), np.float32))
-                pos += int(pause * SR)
-        wav = np.concatenate(pieces).astype(np.float32)
-        if DRAMATIC:
-            raw = os.path.join(OUT, "tts", "_tmp_in.wav"); fxd = os.path.join(OUT, "tts", "_tmp_out.wav")
-            sf.write(raw, wav, SR)
-            fx = VOICE_FX + (f",atempo={TEMPO}" if TEMPO != 1 else "")
-            subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", raw, "-af", fx, "-ar", str(SR), fxd], check=True)
-            wav = sf.read(fxd, dtype="float32")[0]
-            bounds = [(int(a / TEMPO), int(b / TEMPO)) for a, b in bounds]
-            wav = wav[: max(bounds[-1][1] + int(0.05 * SR), 1)]
-        seg["wav"], seg["bounds"] = wav, bounds
+                z = int(max(pause, 0.1) * SR)
+                pieces.append(np.zeros(z, np.float32)); pos += z
+        seg["wav"] = np.concatenate(pieces).astype(np.float32)
+        seg["bounds"] = bounds
     t = LEAD
     for seg in SEGMENTS:
         seg["start"] = t
         seg["dur"] = len(seg["wav"]) / SR
         seg["end"] = t + seg["dur"]
-        gap = seg["gap"] if seg is SEGMENTS[-1] or seg.get("boom") else seg["gap"] * PAUSE_SCALE
+        gap = seg["gap"] if seg is SEGMENTS[-1] or "boom" in seg else seg["gap"] * PAUSE_SCALE
         t = seg["end"] + gap
-        if len(seg["bounds"]) == len(seg["cap"]):  # one caption chunk per spoken phrase: exact sync
-            seg["chunks"] = [(c, t0 + a / SR, t0 + b / SR) for c, (a, b), t0 in
-                             zip(seg["cap"], seg["bounds"], [seg["start"]] * len(seg["cap"]))]
+        if len(seg["bounds"]) == len(seg["cap"]):  # one caption per spoken sentence: exact sync
+            st = [seg["start"] + a / SR for a, b in seg["bounds"]]
+            en = st[1:] + [seg["end"]]
+            seg["chunks"] = list(zip(seg["cap"], st, en))
         else:  # fall back: proportional to text length
             w = np.array([len(c) + 4 for c in seg["cap"]], float)
             edges = seg["start"] + np.concatenate([[0], np.cumsum(w) / w.sum()]) * seg["dur"]
             seg["chunks"] = [(seg["cap"][j], edges[j], edges[j + 1]) for j in range(len(seg["cap"]))]
+        print(f"  voice {seg['dur']:5.2f}s  " + " | ".join(f"{c} @{a - seg['start']:.2f}" for c, a, b in seg["chunks"]))
     return t
 
 
 def trim_silence(x, thr=0.01):
+    """Trim leading/trailing silence, keeping a generous tail so word endings are never clipped."""
     idx = np.where(np.abs(x) > thr)[0]
     if len(idx) == 0:
         return x
-    a, b = max(0, idx[0] - int(0.03 * SR)), min(len(x), idx[-1] + int(0.08 * SR))
-    return x[a:b]
+    a, b = max(0, idx[0] - int(0.03 * SR)), min(len(x), idx[-1] + int(0.18 * SR))
+    y = x[a:b].copy()
+    f = min(len(y), int(0.04 * SR))
+    y[-f:] *= np.linspace(1, 0, f)  # soft fade instead of a hard cut
+    return y
 
 
 # ----------------------------------------------------------------------------- 2. sound design
@@ -746,9 +755,20 @@ SCENES = {"map": scene_map, "sky": scene_sky, "energy": scene_energy,
 # ----------------------------------------------------------------------------- captions
 def draw_caption(img, text, age):
     sc = back_out(age / 0.16, 2.6) * 0.18 + 0.82 if age < 0.3 else 1.0
+    words = text.split()
+    base = 80
+    fb, line_w, nlines = F(base), 0, 1  # shrink long sentences so they fit in two lines
+    for w_ in words:
+        wl = fb.getlength(w_)
+        if line_w and line_w + fb.getlength(" ") + wl > 930:
+            nlines, line_w = nlines + 1, wl
+        else:
+            line_w += (fb.getlength(" ") if line_w else 0) + wl
+    if nlines > 2:
+        base = 66
+    sc *= base / 80
     f = F(80 * sc)
     d = ImageDraw.Draw(img)
-    words = text.split()
     space = f.getlength(" ")
     lines, cur, cw = [], [], 0
     for w_ in words:
@@ -787,7 +807,9 @@ def build_timeline(total):
         for j, (txt, a, b) in enumerate(seg["chunks"]):
             end = b if j < len(seg["chunks"]) - 1 else min(nxt - 0.1, seg["end"] + 0.7)
             chunks.append((txt, a, end))
-    boom = next(s["start"] for s in SEGMENTS if s.get("boom"))
+    sb = next(s for s in SEGMENTS if "boom" in s)
+    ci, frac = sb["boom"]
+    boom = sb["chunks"][ci][1] + frac * (sb["chunks"][ci][2] - sb["chunks"][ci][1])
     s_en = next(s for s in SEGMENTS if s["scene"] == "energy")
     s_tr = next(s for s in SEGMENTS if s["scene"] == "trees")
     s_cr = next(s for s in SEGMENTS if s["scene"] == "crater")
@@ -796,9 +818,9 @@ def build_timeline(total):
     ctx = dict(
         boom=boom,
         pin=SEGMENTS[0]["start"] + SEGMENTS[0]["dur"] * 0.62,
-        stamp2=s_en["chunks"][1][1],
-        stamp=s_cr["chunks"][3][1],
-        end_hit=s_end["chunks"][2][1],
+        stamp2=s_en["chunks"][1][1] + 0.35,
+        stamp=s_cr["chunks"][2][1] + 0.45 * (s_cr["chunks"][2][2] - s_cr["chunks"][2][1]),
+        end_hit=s_end["chunks"][1][1],
         ring=tr_scene["start"] + 0.35,
         cuts=[s["start"] for s in scenes[1:] if s["name"] != "sky"] + [scenes[1]["start"]],
     )

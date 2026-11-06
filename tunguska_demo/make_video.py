@@ -32,14 +32,14 @@ SEGMENTS = [
          cap=["Subah sawa 7 baje...", "aasmaan mein...", "aag ka ek", "VISHAAL GOLA!"]),
     dict(scene="sky",   gap=0.45, hi="[soft] और फिर… | [slow] एक ज़बरदस्त…",
          cap=["Aur phir...", "ek zabardast..."]),
-    dict(scene="sky",   gap=0.8, hi="[punch] धमाका!", cap=["DHAMAKA!"], boom=True),
+    dict(scene="sky",   gap=0.65, hi="[punch] धमाका!", cap=["DHAMAKA!"], boom=True),
     dict(scene="energy", gap=0.3, hi="ये हिरोशिमा बम से… | [punch] सैकड़ों गुना | ताक़तवर था।",
          cap=["HIROSHIMA BOMB se...", "SAIKDON GUNA", "taakatwar tha."]),
     dict(scene="trees", gap=0.35, hi="[fast] दो हज़ार वर्ग किलोमीटर में, | [slow] करीब आठ करोड़ पेड़… | ज़मीन पर | [punch] बिछ गए!",
          cap=["2,000 sq km mein,", "kareeb 8 CRORE PED...", "zameen par", "BICHH GAYE!"]),
     dict(scene="crater", gap=0.3, hi="[soft] लेकिन… | [slow] सबसे बड़ा रहस्य? | वहाँ कोई गड्ढा… | [punch] ही नहीं मिला!",
          cap=["Lekin...", "sabse bada RAHASYA?", "Wahan koi GADDHA...", "hi NAHI MILA!"]),
-    dict(scene="end",   gap=2.6, hi="[soft] तो आखिर… | [slow] वहाँ फटा | [punch] क्या था?",
+    dict(scene="end",   gap=2.2, hi="[soft] तो आखिर… | [slow] वहाँ फटा | [punch] क्या था?",
          cap=["Toh aakhir...", "wahan PHATA", "KYA THA?"]),
 ]
 LEAD = 0.45
@@ -137,7 +137,8 @@ VOICE_FX = ("asetrate=24000*0.94,aresample=24000,atempo=1.0638,bass=g=4:f=120,"
             "aecho=0.8:0.6:45|90:0.16|0.08")
 DRAMATIC = os.environ.get("DRAMATIC", "1") == "1"
 SPEED = float(os.environ.get("SPEED", "1.18"))         # global talking-speed multiplier
-PAUSE_SCALE = float(os.environ.get("PAUSE_SCALE", "0.6"))  # shrinks pauses between phrases/segments
+PAUSE_SCALE = float(os.environ.get("PAUSE_SCALE", "0.5"))  # shrinks pauses between phrases/segments
+TEMPO = float(os.environ.get("TEMPO", "2.0"))  # final playback-speed of the narration (pitch preserved)
 
 
 def parse_phrases(hi):
@@ -187,9 +188,11 @@ def build_voice():
         if DRAMATIC:
             raw = os.path.join(OUT, "tts", "_tmp_in.wav"); fxd = os.path.join(OUT, "tts", "_tmp_out.wav")
             sf.write(raw, wav, SR)
-            subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", raw, "-af", VOICE_FX, "-ar", str(SR), fxd], check=True)
-            wav2 = sf.read(fxd, dtype="float32")[0]
-            wav = np.zeros_like(wav); n = min(len(wav), len(wav2)); wav[:n] = wav2[:n]
+            fx = VOICE_FX + (f",atempo={TEMPO}" if TEMPO != 1 else "")
+            subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", raw, "-af", fx, "-ar", str(SR), fxd], check=True)
+            wav = sf.read(fxd, dtype="float32")[0]
+            bounds = [(int(a / TEMPO), int(b / TEMPO)) for a, b in bounds]
+            wav = wav[: max(bounds[-1][1] + int(0.05 * SR), 1)]
         seg["wav"], seg["bounds"] = wav, bounds
     t = LEAD
     for seg in SEGMENTS:
@@ -589,8 +592,9 @@ def scene_energy(t, dur, ctx):
     cols, rows, sp = 20, 18, 44
     x0, y0 = W / 2 - (cols - 1) * sp / 2, 440
     total = cols * rows
-    n = int(total * clamp((t - 1.1) / (dur - 1.5)) ** 1.7)
-    if t > 0.45:
+    f0 = min(1.1, dur * 0.25)
+    n = int(total * clamp((t - f0) / max(0.4, dur * 0.85 - f0)) ** 1.7)
+    if t > f0 * 0.4:
         n = max(n, 1)
     glow = Image.new("RGB", (W // 2, H // 2))
     gd = ImageDraw.Draw(glow)
@@ -605,8 +609,8 @@ def scene_energy(t, dur, ctx):
     img = add_glow(img, glow, 6)
     d = ImageDraw.Draw(img)
     # explain the unit
-    if 0.45 < t < 1.6:
-        a = clamp((t - 0.45) / 0.2) * clamp((1.6 - t) / 0.25)
+    if f0 * 0.4 < t < f0 + 0.5:
+        a = clamp((t - f0 * 0.4) / 0.15) * clamp((f0 + 0.5 - t) / 0.2)
         label_box(img, x0 + 300, y0 - 95, "1 dot = 1 Hiroshima bomb", 44, bg=(20, 20, 26), alpha=a)
     yb = y0 + rows * sp + 10
     d.text((W / 2, yb + 10), "Tunguska: ~3–15 megaton (estimate)   •   Hiroshima: 0.015 megaton",
@@ -693,7 +697,7 @@ def scene_crater(t, dur, ctx):
             d.arc((W / 2 - R, gy - R * 0.9, W / 2 + R, gy + R * 0.9), a0, a1, fill=(255, 255, 255), width=6)
         label_box(img, W / 2, gy + 150, "CRATER YAHAN HONA CHAHIYE THA?", 38, bg=(20, 20, 26), alpha=a)
     # magnifier sweep
-    mt = clamp((t - 0.6) / 1.6)
+    mt = clamp((t - 0.3) / max(0.6, ctx["stamp"] - ctx["scene_start"] - 0.5))
     if 0 < mt < 1:
         mx = lerp(150, W - 150, smooth(mt))
         my = gy - 60 + 30 * math.sin(mt * 9)

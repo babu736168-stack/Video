@@ -34,7 +34,7 @@ SEGMENTS = [
          cap=["Aur phir...", "ek zabardast..."]),
     dict(scene="sky",   gap=0.8, hi="[punch] धमाका!", cap=["DHAMAKA!"], boom=True),
     dict(scene="energy", gap=0.3, hi="ये हिरोशिमा बम से… | [punch] सैकड़ों गुना | ताक़तवर था।",
-         cap=["Yeh HIROSHIMA BOMB se...", "SAIKDON GUNA", "taakatwar tha."]),
+         cap=["HIROSHIMA BOMB se...", "SAIKDON GUNA", "taakatwar tha."]),
     dict(scene="trees", gap=0.35, hi="[fast] दो हज़ार वर्ग किलोमीटर में, | [slow] करीब आठ करोड़ पेड़… | ज़मीन पर | [punch] बिछ गए!",
          cap=["2,000 sq km mein,", "kareeb 8 CRORE PED...", "zameen par", "BICHH GAYE!"]),
     dict(scene="crater", gap=0.3, hi="[soft] लेकिन… | [slow] सबसे बड़ा रहस्य? | वहाँ कोई गड्ढा… | [punch] ही नहीं मिला!",
@@ -136,6 +136,8 @@ VOICE_FX = ("asetrate=24000*0.94,aresample=24000,atempo=1.0638,bass=g=4:f=120,"
             "equalizer=f=3000:t=q:w=1:g=3,acompressor=threshold=-20dB:ratio=4:attack=5:release=120:makeup=4,"
             "aecho=0.8:0.6:45|90:0.16|0.08")
 DRAMATIC = os.environ.get("DRAMATIC", "1") == "1"
+SPEED = float(os.environ.get("SPEED", "1.18"))         # global talking-speed multiplier
+PAUSE_SCALE = float(os.environ.get("PAUSE_SCALE", "0.6"))  # shrinks pauses between phrases/segments
 
 
 def parse_phrases(hi):
@@ -172,6 +174,7 @@ def build_voice():
         phrases = parse_phrases(seg["hi"])
         for j, (txt, tag) in enumerate(phrases):
             speed, gain, pause = STYLES[tag] if DRAMATIC else (1.08, 0.95, 0.12)
+            speed, pause = round(speed * SPEED, 3), pause * PAUSE_SCALE
             w = trim_silence(tts_cached(kh, txt, speed))
             w = w / max(1e-6, np.abs(w).max()) * 0.8 * gain
             bounds.append((pos, pos + len(w)))
@@ -193,7 +196,8 @@ def build_voice():
         seg["start"] = t
         seg["dur"] = len(seg["wav"]) / SR
         seg["end"] = t + seg["dur"]
-        t = seg["end"] + seg["gap"]
+        gap = seg["gap"] if seg is SEGMENTS[-1] or seg.get("boom") else seg["gap"] * PAUSE_SCALE
+        t = seg["end"] + gap
         if len(seg["bounds"]) == len(seg["cap"]):  # one caption chunk per spoken phrase: exact sync
             seg["chunks"] = [(c, t0 + a / SR, t0 + b / SR) for c, (a, b), t0 in
                              zip(seg["cap"], seg["bounds"], [seg["start"]] * len(seg["cap"]))]
@@ -777,7 +781,7 @@ def build_timeline(total):
     for i, seg in enumerate(SEGMENTS):
         nxt = SEGMENTS[i + 1]["start"] if i + 1 < len(SEGMENTS) else total
         for j, (txt, a, b) in enumerate(seg["chunks"]):
-            end = b if j < len(seg["chunks"]) - 1 else min(nxt - 0.02, seg["end"] + 0.7)
+            end = b if j < len(seg["chunks"]) - 1 else min(nxt - 0.1, seg["end"] + 0.7)
             chunks.append((txt, a, end))
     boom = next(s["start"] for s in SEGMENTS if s.get("boom"))
     s_en = next(s for s in SEGMENTS if s["scene"] == "energy")

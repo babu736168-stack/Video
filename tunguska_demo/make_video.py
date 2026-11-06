@@ -167,9 +167,16 @@ def use_voice_file(path):
     pieces = [(si, p) for si, seg in enumerate(SEGMENTS) for p, _ in parse_phrases(seg["hi"])]
     caps = [c for seg in SEGMENTS for c in seg["cap"]]
     assert len(pieces) == len(caps), "each '|' piece needs one caption chunk"
-    lens = np.array([len(p) + 3 for _, p in pieces], float)
-    expect = np.cumsum(lens)[:-1] / lens.sum() * len(v)
-    cuts = align_cuts(expect, silent_runs(v, 60), len(v))
+    runs = silent_runs(v, 60)
+    cuts = None
+    try:
+        cuts = dtw_cuts(v, [p for _, p in pieces], runs)
+    except Exception as e:  # no TTS / librosa: fall back to text-length estimate
+        print("  (DTW alignment unavailable:", e, ")")
+    if cuts is None:
+        lens = np.array([len(p) + 3 for _, p in pieces], float)
+        expect = np.cumsum(lens)[:-1] / lens.sum() * len(v)
+        cuts = align_cuts(expect, runs, len(v))
     starts = [0] + cuts
     ends = cuts + [len(v)]
     k = 0
@@ -185,6 +192,42 @@ def use_voice_file(path):
         k += n
         print(f"  voice {seg['dur']:5.2f}s  " + " | ".join(f"{c} @{x - seg['start']:.2f}" for c, x, _ in seg["chunks"]))
     return t0 + len(v) / SR + SEGMENTS[-1]["gap"]
+
+
+def dtw_cuts(v, texts, runs):
+    """Align an uploaded narration to the script: read the script with our own TTS (known sentence
+    boundaries), DTW-match MFCCs of both recordings, map each boundary across, snap to the nearest pause."""
+    import librosa
+    kh = []
+    ref, bounds, pos = [], [], 0
+    gap = np.zeros(int(0.3 * SR), np.float32)
+    for i, t in enumerate(texts):
+        w = trim_silence(tts_cached(kh, t, 1.0))
+        ref.append(w); pos += len(w)
+        if i < len(texts) - 1:
+            bounds.append(pos + len(gap) // 2)
+            ref.append(gap); pos += len(gap)
+    ref = np.concatenate(ref)
+    hop = 240  # 10 ms
+    feat = lambda x: librosa.feature.mfcc(y=x.astype(np.float32), sr=SR, n_mfcc=20, hop_length=hop, n_fft=1024)[1:]
+    A, B = feat(ref), feat(v)
+    A = (A - A.mean(1, keepdims=True)) / (A.std(1, keepdims=True) + 1e-6)
+    B = (B - B.mean(1, keepdims=True)) / (B.std(1, keepdims=True) + 1e-6)
+    _, wp = librosa.sequence.dtw(X=A, Y=B, metric="cosine")
+    wp = wp[::-1]
+    cuts = []
+    for b in bounds:
+        fa = b // hop
+        idx = np.searchsorted(wp[:, 0], fa)
+        fb = wp[min(idx, len(wp) - 1), 1]
+        x = fb * hop
+        near = [r for r in runs if abs((r[0] + r[1]) / 2 - x) < 0.45 * SR and (not cuts or r[1] > cuts[-1])]
+        if near:
+            r = min(near, key=lambda r: abs((r[0] + r[1]) / 2 - x) / SR - 0.5 * min((r[1] - r[0]) / SR, 0.6))
+            cuts.append(r[1])
+        else:
+            cuts.append(int(max(x, cuts[-1] + SR // 10 if cuts else x)))
+    return cuts
 
 
 def align_cuts(expect, runs, total):

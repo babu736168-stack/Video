@@ -151,170 +151,162 @@ def chunk_t(ctx, seg, j, frac=0.0):
     return c[1] + frac * (c[2] - c[1]) - ctx["scene_start"]
 
 
-# ----------------------------------------------------------------------------- scenes
+# ----------------------------------------------------------------------------- scenes (3D renders)
+# Every key word gets its own 3D image (rendered by blender/shots.py into renders/).
+RENDERS = {}
+def R(name):
+    if name not in RENDERS:
+        RENDERS[name] = Image.open(os.path.join(HERE, "renders", name + ".png")).convert("RGB")
+    return RENDERS[name]
+
+def cam_move(img, k, focus=(0.5, 0.45), z0=1.0, z1=1.12):
+    """Slow push-in towards focus (k = 0..1 progress through the shot)."""
+    z = lerp(z0, z1, smooth(k))
+    w2, h2 = int(W / z), int(H / z)
+    fx, fy = focus
+    x0 = int(clamp(fx * W - w2 / 2, 0, W - w2)); y0 = int(clamp(fy * H - h2 / 2, 0, H - h2))
+    return img.crop((x0, y0, x0 + w2, y0 + h2)).resize((W, H), Image.BILINEAR)
+
+DUST = [(random.Random(i).uniform(0, W), random.Random(i + 50).uniform(0, H), random.Random(i + 7).uniform(1.5, 4)) for i in range(70)]
+
+def _shade():
+    a = np.zeros((H, W), np.float32)
+    y = np.arange(H, dtype=np.float32)
+    band = np.exp(-((y - 1470) / 190) ** 2) * 175
+    a[:] = band[:, None]
+    m = Image.fromarray(a.astype(np.uint8), "L")
+    im = Image.new("RGBA", (W, H), (0, 0, 0, 0)); im.putalpha(m)
+    return im
+
+SHADE = _shade()
+
+
+def dust(img, t):
+    d = ImageDraw.Draw(img)
+    for x, y, r in DUST:
+        yy = (y - t * 22 * r) % H
+        a = int(70 + 60 * math.sin(t * 2 + x))
+        d.ellipse((x - r, yy - r, x + r, yy + r), fill=(a, a, min(255, a + 20)))
+
+def shots_for(ctx, scene, plan):
+    """plan: list of (chunk_index, fraction, render_name, focus). Returns active (name, focus, start, end) for local t."""
+    out = []
+    for item in plan:
+        ci, frac, name, focus = item[:4]
+        zz = item[4] if len(item) > 4 else (1.0, 1.12)
+        out.append((chunk_t(ctx, scene, ci, frac), name, (focus, zz)))
+    return out
+
+def show(t, dur, ctx, plan):
+    seq = shots_for(ctx, ctx["scene_name"], plan)
+    seq[0] = (0.0,) + seq[0][1:]
+    idx = max(i for i, (st, _, _) in enumerate(seq) if t >= st or i == 0)
+    st, name, focus = seq[idx]
+    en = seq[idx + 1][0] if idx + 1 < len(seq) else dur
+    k = (t - st) / max(0.3, en - st)
+    img = cam_move(R(name), k, focus[0], *focus[1])
+    if idx > 0 and t - st < 0.18:  # punch-in on every image switch
+        z = lerp(1.08, 1.0, ease_out((t - st) / 0.18))
+        w2, h2 = int(W / z), int(H / z)
+        img = img.crop(((W - w2) // 2, (H - h2) // 2, (W - w2) // 2 + w2, (H - h2) // 2 + h2)).resize((W, H), Image.BILINEAR)
+    dust(img, t + ctx["scene_start"])
+    img.paste(SHADE, (0, 0), SHADE)  # darken the caption area for readability
+    return img, idx, t - st
+
+
 def scene_ban(t, dur, ctx):
-    img = E.BG_GRID.copy()
-    d = ImageDraw.Draw(img)
-    # Australia map (top)
-    s, cx, cy = 13.5, 0, -26
-    for P in AUS:
-        pts = [(W / 2 + (x - cx) * s, 470 - (y - cy) * s) for x, y in P]
-        d.polygon([(x, y + 8) for x, y in pts], fill=(120, 12, 22))
-        d.polygon(pts, fill=(222, 38, 48), outline=(255, 140, 140), width=3)
-    a = back_out((t - 0.1) / 0.3)
-    label_box(img, W / 2, 230, "AUSTRALIAN SCHOOLS", 60, bg=DARK, scale=a)
-    # can spraying
-    bob = 6 * math.sin(t * 3)
-    draw_can(img, 400, 1010 + bob, 470)
-    d = ImageDraw.Draw(img)
-    spray(d, 400 + 110, 1010 + bob - 300, t, length=480, spread=0.3)
-    st = chunk_t(ctx, "ban", 0, 0.55)
-    if t > st:
-        label_box(img, 470, 1000, "BANNED", 130, scale=lerp(1.8, 1.0, ease_out((t - st) / 0.18)), rot=12)
-    c1 = chunk_t(ctx, "ban", 1, 0.25)
-    for i, txt in enumerate(["ASTHMA", "ALLERGIES"]):
-        tt = c1 + i * 0.35
-        if t > tt:
-            label_box(img, 820, 760 + i * 120, txt, 54, bg=(245, 245, 248), fg=(15, 15, 20), scale=back_out((t - tt) / 0.3))
+    img, idx, lt = show(t, dur, ctx, [(0, 0, "spray_can", (0.5, 0.42)), (0, 0.55, "australia_school", (0.47, 0.45), (1.35, 1.5)),
+                                      (1, 0.0, "lungs", (0.5, 0.4))])
+    if idx == 0:
+        st = chunk_t(ctx, "ban", 0, 0.3)
+        if t > st:
+            label_box(img, W / 2, 560, "BANNED", 140, scale=lerp(1.8, 1.0, ease_out((t - st) / 0.18)), rot=-8)
+    elif idx == 1:
+        label_box(img, W / 2, 230, "AUSTRALIAN SCHOOLS", 64, scale=back_out(lt / 0.3))
+    else:
+        label_box(img, 270, 320, "ASTHMA", 60, bg=(245, 245, 248), fg=(15, 15, 20), scale=back_out((lt - 0.25) / 0.3))
+        label_box(img, 800, 420, "ALLERGIES", 60, bg=(245, 245, 248), fg=(15, 15, 20), scale=back_out((lt - 0.6) / 0.3))
     return img
 
 
 def scene_recall(t, dur, ctx):
-    img = E.BG_GRID.copy()
-    c1 = chunk_t(ctx, "recall", 1)
-    c2 = chunk_t(ctx, "recall", 2)
-    if t < c1:
-        label_box(img, W / 2, 230, "USA · 2021 · P&G", 60, bg=DARK, scale=back_out(t / 0.3))
-        cols, rows = 4, 3
-        for i in range(cols * rows):
-            x = 190 + (i % cols) * 233
-            y = 560 + (i // cols) * 300
-            k = back_out((t - 0.1 - i * 0.05) / 0.25)
-            if k > 0.05:
-                draw_can(img, x, y, 230 * k, body=[(36, 70, 160), (150, 40, 60), (40, 120, 90)][i % 3], label="")
-        st = 0.9
-        if t > st:
-            label_box(img, W / 2, 860, "RECALLED", 130, scale=lerp(1.8, 1.0, ease_out((t - st) / 0.18)), rot=-8)
+    img, idx, lt = show(t, dur, ctx, [(0, 0, "recall_shelf", (0.5, 0.5)), (1, 0.0, "benzene", (0.5, 0.42)),
+                                      (2, 0.0, "test_tubes", (0.5, 0.5))])
+    if idx == 0:
+        label_box(img, W / 2, 230, "USA · 2021 · P&G", 62, bg=DARK, scale=back_out(lt / 0.3))
+        if lt > 0.6:
+            label_box(img, W / 2, 760, "RECALLED", 140, scale=lerp(1.8, 1.0, ease_out((lt - 0.6) / 0.18)), rot=-7)
+    elif idx == 1:
+        label_box(img, W / 2, 230, "BENZENE  (C6H6)", 70, scale=back_out(lt / 0.3))
+        if lt > 0.6:
+            label_box(img, W / 2, 1180, "GROUP 1 CARCINOGEN · WHO-IARC", 50, bg=DARK, scale=back_out((lt - 0.6) / 0.3))
     else:
-        k = t - c1
-        d = ImageDraw.Draw(img)
-        glow = Image.new("RGB", (W // 2, H // 2))
-        ImageDraw.Draw(glow).ellipse(((W / 2 - 300) / 2, (720 - 300) / 2, (W / 2 + 300) / 2, (720 + 300) / 2), fill=(90, 20, 20))
-        img = add_glow(img, glow, 30)
-        d = ImageDraw.Draw(img)
-        benzene(d, W / 2, 720, 190, ease_out(k / 0.6))
-        d.text((W / 2, 720), "C6H6", font=F(54), fill=(220, 225, 235), anchor="mm")
-        label_box(img, W / 2, 230, "BENZENE", 78, scale=back_out(k / 0.3))
-        if k > 0.7:
-            label_box(img, W / 2, 1010, "GROUP 1 CARCINOGEN", 64, scale=back_out((k - 0.7) / 0.3), rot=-3)
-            d = ImageDraw.Draw(img)
-            d.text((W / 2, 1090), "WHO · IARC", font=F(34, "semi"), fill=(200, 205, 220), anchor="mm")
-        if t > c2:
-            label_box(img, W / 2, 1200, "FDA: levels found were low", 42, bg=DARK, scale=back_out((t - c2) / 0.3))
+        label_box(img, W / 2, 230, "FDA: LEVELS WERE LOW", 62, bg=DARK, scale=back_out(lt / 0.3))
+        if lt > 0.7:
+            label_box(img, W / 2, 1200, "BUT SHOULD BE ZERO", 66, scale=back_out((lt - 0.7) / 0.3), rot=-3)
     return img
 
 
 def scene_butane(t, dur, ctx):
-    img = E.BG_GRID.copy()
-    c1 = chunk_t(ctx, "butane", 1)
-    if t < c1:
-        draw_can(img, W / 2, 880, 760, cut=True, t=t)
-        d = ImageDraw.Draw(img)
-        k = back_out((t - 0.4) / 0.3)
-        label_box(img, W / 2 + 330, 640, "BUTANE GAS", 50, bg=(200, 120, 20), scale=k)
-        label_box(img, W / 2 - 330, 1080, "LIQUID", 46, bg=(40, 110, 160), scale=back_out((t - 0.7) / 0.3))
-        for j in range(3):  # pressure arrows
-            y = 760 - ((t * 120 + j * 70) % 210)
-            d.polygon([(W / 2 - 240, y), (W / 2 - 220, y + 26), (W / 2 - 260, y + 26)], fill=YELLOW)
-        label_box(img, W / 2, 230, "WHAT'S INSIDE?", 64, bg=DARK, scale=back_out(t / 0.3))
-    else:
-        k = t - c1
-        d = ImageDraw.Draw(img)
-        glow = Image.new("RGB", (W // 2, H // 2))
-        n = int(11 * clamp(k / 1.2))
-        ImageDraw.Draw(glow).text((W / 4, 640 / 2), str(n), font=F(230), fill=(140, 20, 20), anchor="mm")
-        img = add_glow(img, glow, 18)
-        d = ImageDraw.Draw(img)
-        d.text((W / 2, 640), str(n), font=F(460), fill=(255, 70, 70), anchor="mm", stroke_width=8, stroke_fill=(40, 0, 0))
-        label_box(img, W / 2, 230, "UNITED KINGDOM", 60, bg=DARK, scale=back_out(k / 0.3))
-        if k > 0.4:
-            label_box(img, W / 2, 960, "DEATHS · 2001–2020", 66, scale=back_out((k - 0.4) / 0.3))
+    img, idx, lt = show(t, dur, ctx, [(0, 0, "can_cutaway", (0.5, 0.42)), (1, 0.0, "uk_map", (0.52, 0.45))])
+    if idx == 0:
+        label_box(img, W / 2, 230, "WHAT'S INSIDE?", 66, bg=DARK, scale=back_out(lt / 0.3))
+        if lt > 0.5:
+            label_box(img, 820, 620, "BUTANE GAS", 54, bg=(200, 120, 20), scale=back_out((lt - 0.5) / 0.3))
             d = ImageDraw.Draw(img)
-            d.text((W / 2, 1060), "deodorant inhalation (ONS)", font=F(36, "semi"), fill=(200, 205, 220), anchor="mm")
+            d.line((690, 650, 600, 700), fill=YELLOW, width=8)
+    else:
+        label_box(img, W / 2, 230, "UNITED KINGDOM", 64, bg=DARK, scale=back_out(lt / 0.3))
+        n = int(11 * clamp((lt - 0.2) / 1.0))
+        if lt > 0.2:
+            d = ImageDraw.Draw(img)
+            d.text((W / 2, 400), f"{n} DEATHS", font=F(120), fill=(255, 80, 80), anchor="mm", stroke_width=8, stroke_fill=(30, 0, 0))
+            d.text((W / 2, 490), "deodorant inhalation · 2001–2020 (ONS)", font=F(36, "semi"), fill=(220, 225, 235),
+                   anchor="mm", stroke_width=3, stroke_fill=(0, 0, 0))
     return img
 
 
-FR_MOLS = [(random.Random(i).uniform(-1, 1), random.Random(i + 99).uniform(-1, 1)) for i in range(26)]
-
 def scene_fragrance(t, dur, ctx):
-    img = E.BG_GRID.copy()
-    d = ImageDraw.Draw(img)
-    x0, y0, x1, y1 = 120, 380, 960, 900
-    d.rounded_rectangle((x0, y0, x1, y1), radius=24, fill=(240, 238, 230), outline=(0, 0, 0), width=4)
-    d.text((x0 + 40, y0 + 40), "INGREDIENTS:", font=F(46), fill=(20, 20, 20))
-    lines = ["Butane, Isobutane, Propane,", "Alcohol Denat., Cyclopentasiloxane,", "Aluminium Chlorohydrate,"]
-    for i, ln in enumerate(lines):
-        d.text((x0 + 40, y0 + 120 + i * 62), ln, font=F(38, "semi"), fill=(60, 60, 60))
-    fy = y0 + 120 + 3 * 62
-    hl = smooth((t - 0.5) / 0.3)
-    if hl > 0:
-        pw = F(46).getlength("PARFUM (FRAGRANCE)")
-        d.rounded_rectangle((x0 + 30, fy - 8, x0 + 50 + pw, fy + 58), radius=8, fill=YELLOW)
-    d.text((x0 + 40, fy), "PARFUM (FRAGRANCE)", font=F(46), fill=(10, 10, 10))
-    # hidden chemicals bursting out of the word
-    k = ease_out((t - 0.9) / 1.0)
-    if k > 0:
-        ox, oy = x0 + 260, fy + 30
-        for i, (ux, uy) in enumerate(FR_MOLS):
-            px = ox + ux * 420 * k + 120 * k
-            py = oy + 220 + abs(uy) * 330 * k
-            r = 34
-            d.ellipse((px - r, py - r, px + r, py + r), fill=(60, 64, 80), outline=(255, 214, 10), width=3)
-            d.text((px, py), "?", font=F(40), fill=YELLOW, anchor="mm")
-    label_box(img, W / 2, 230, "READ THE LABEL", 64, bg=DARK, scale=back_out(t / 0.3))
+    img, idx, lt = show(t, dur, ctx, [(0, 0, "perfume", (0.5, 0.42))])
+    label_box(img, W / 2, 230, "FRAGRANCE = ?", 72, scale=back_out(t / 0.3))
     st = dur * 0.55
     if t > st:
-        label_box(img, W / 2, 1270, "TRADE SECRET", 92, scale=lerp(1.8, 1.0, ease_out((t - st) / 0.18)), rot=-6)
+        label_box(img, W / 2, 1180, "TRADE SECRET", 104, scale=lerp(1.8, 1.0, ease_out((t - st) / 0.18)), rot=-6)
     return img
 
 
 def scene_study(t, dur, ctx):
-    img = E.BG_GRID.copy()
-    d = ImageDraw.Draw(img)
-    label_box(img, W / 2, 230, "DENMARK · 1,189 PEOPLE", 58, bg=DARK, scale=back_out(t / 0.3))
-    n = int(42 * clamp((t - 0.6) / max(0.8, dur * 0.55)))
-    for i in range(100):
-        x = 165 + (i % 10) * 83
-        y = 420 + (i // 10) * 80
-        person(d, x, y, 1.45, (235, 60, 60) if i < n else (70, 74, 88))
-    label_box(img, W / 2, 1250, f"{n}%  EYE / AIRWAY SYMPTOMS", 54, scale=back_out((t - 0.6) / 0.3))
+    img, idx, lt = show(t, dur, ctx, [(0, 0, "figurines", (0.5, 0.45))])
+    label_box(img, W / 2, 230, "DENMARK · 1,189 PEOPLE", 60, bg=DARK, scale=back_out(t / 0.3))
+    n = int(42 * clamp((t - 0.4) / max(0.8, dur * 0.5)))
+    if t > 0.4:
+        d = ImageDraw.Draw(img)
+        d.text((W / 2, 420), f"{n}%", font=F(170), fill=(255, 80, 80), anchor="mm", stroke_width=8, stroke_fill=(30, 0, 0))
     return img
 
 
 def scene_end(t, dur, ctx):
-    img = E.BG_GRID.copy()
-    glow = Image.new("RGB", (W // 2, H // 2))
-    sz = 480 * back_out(t / 0.45) * (1 + 0.06 * math.sin(t * 5))
-    if sz > 5:
-        ImageDraw.Draw(glow).text((W / 4, 290), "?", font=F(sz / 2), fill=(200, 120, 20), anchor="mm")
-    img = add_glow(img, glow, 22)
-    d = ImageDraw.Draw(img)
-    if sz > 5:
-        d.text((W / 2, 580), "?", font=F(sz), fill=(255, 226, 120), anchor="mm", stroke_width=6, stroke_fill=(60, 20, 0))
+    img, idx, lt = show(t, dur, ctx, [(0, 0, "question", (0.5, 0.42))])
     for i, opt in enumerate(["SWITCH TO ROLL-ON?", "FRAGRANCE-FREE?", "KEEP SPRAYING?"]):
         st = 0.5 + i * 0.3
         if t > st:
-            label_box(img, W / 2, 940 + i * 115, opt, 58, bg=(245, 245, 248), fg=(15, 15, 20), scale=back_out((t - st) / 0.3))
+            label_box(img, W / 2, 230 + i * 110, opt, 56, bg=(245, 245, 248), fg=(15, 15, 20), scale=back_out((t - st) / 0.3))
     if t > 1.6:
-        label_box(img, W / 2, 1680, "COMMENT BELOW", 64, scale=back_out((t - 1.6) / 0.3))
-        E.down_arrow(d, W / 2, 1830 + 18 * math.sin(t * 9), 0.9)
-        d.text((W / 2, 1290), "Never inhale sprays · use them in ventilated rooms", font=F(32, "semi"),
-               fill=(190, 195, 210), anchor="mm")
+        label_box(img, W / 2, 1700, "COMMENT BELOW", 64, scale=back_out((t - 1.6) / 0.3))
+        d = ImageDraw.Draw(img)
+        E.down_arrow(d, W / 2, 1845 + 18 * math.sin(t * 9), 0.9)
+        d.text((W / 2, 1585), "Never inhale sprays · use them in ventilated rooms", font=F(32, "semi"),
+               fill=(220, 225, 235), anchor="mm", stroke_width=3, stroke_fill=(0, 0, 0))
     return img
 
 
-E.SCENES = {"ban": scene_ban, "recall": scene_recall, "butane": scene_butane, "fragrance": scene_fragrance,
-            "study": scene_study, "end": scene_end}
+def _with_name(fn, name):
+    def f(t, dur, ctx):
+        return fn(t, dur, dict(ctx, scene_name=name))
+    return f
+
+E.SCENES = {n: _with_name(f, n) for n, f in {"ban": scene_ban, "recall": scene_recall, "butane": scene_butane,
+            "fragrance": scene_fragrance, "study": scene_study, "end": scene_end}.items()}
 
 
 # ----------------------------------------------------------------------------- timeline + sound
@@ -337,8 +329,8 @@ def build_timeline(total):
     by = {s["scene"]: s["chunks"] for s in E.SEGMENTS}
     sc = {s["name"]: s for s in scenes}
     ctx = dict(chunks_by_scene=by, cuts=[s["start"] for s in scenes[1:]],
-               banned=by["ban"][0][1] + 0.55 * (by["ban"][0][2] - by["ban"][0][1]),
-               recalled=sc["recall"]["start"] + 0.9,
+               banned=by["ban"][0][1] + 0.3 * (by["ban"][0][2] - by["ban"][0][1]),
+               recalled=sc["recall"]["start"] + 0.6,
                benzene=by["recall"][1][1], deaths=by["butane"][1][1],
                secret=sc["fragrance"]["start"] + 0.55 * (sc["fragrance"]["end"] - sc["fragrance"]["start"]),
                study=sc["study"]["start"], study_dur=sc["study"]["end"] - sc["study"]["start"],

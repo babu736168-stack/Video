@@ -26,20 +26,20 @@ os.makedirs(OUT, exist_ok=True)
 # hi  = what the voice says (Devanagari gives correct pronunciation)
 # cap = on-screen Hinglish caption chunks; ALL-CAPS words / numbers are highlighted yellow
 SEGMENTS = [
-    dict(scene="map",   gap=0.35, hi="तीस जून, उन्नीस सौ आठ। साइबेरिया का घना जंगल।",
+    dict(scene="map",   gap=0.4, hi="[slow] तीस जून… उन्नीस सौ आठ। | [soft] साइबेरिया का | [slow] घना जंगल…",
          cap=["30 JUNE 1908...", "Siberia ka", "ghana JUNGLE."]),
-    dict(scene="sky",   gap=0.25, hi="सुबह सवा सात बजे, आसमान में, आग का एक विशाल गोला दिखा।",
-         cap=["Subah sawa 7 baje,", "aasmaan mein,", "aag ka ek", "VISHAAL GOLA dikha."]),
-    dict(scene="sky",   gap=0.12, hi="और फिर… एक ज़बरदस्त…",
+    dict(scene="sky",   gap=0.3, hi="सुबह सवा सात बजे… | [soft] आसमान में… | [slow] आग का एक | [punch] विशाल गोला!",
+         cap=["Subah sawa 7 baje...", "aasmaan mein...", "aag ka ek", "VISHAAL GOLA!"]),
+    dict(scene="sky",   gap=0.45, hi="[soft] और फिर… | [slow] एक ज़बरदस्त…",
          cap=["Aur phir...", "ek zabardast..."]),
-    dict(scene="sky",   gap=0.75, hi="धमाका!", cap=["DHAMAKA!"], boom=True),
-    dict(scene="energy", gap=0.3, hi="ये हिरोशिमा बम से, सैकड़ों गुना ताक़तवर था।",
-         cap=["Yeh HIROSHIMA BOMB", "se SAIKDON GUNA", "taakatwar tha."]),
-    dict(scene="trees", gap=0.35, hi="दो हज़ार वर्ग किलोमीटर में, करीब आठ करोड़ पेड़, ज़मीन पर बिछ गए।",
-         cap=["2,000 sq km mein,", "kareeb 8 CRORE PED", "zameen par", "bichh gaye."]),
-    dict(scene="crater", gap=0.3, hi="लेकिन सबसे बड़ा रहस्य? वहाँ कोई गड्ढा ही नहीं मिला।",
-         cap=["Lekin sabse bada", "RAHASYA?", "Wahan koi GADDHA", "hi nahi mila."]),
-    dict(scene="end",   gap=2.6, hi="तो आखिर… वहाँ फटा क्या था?",
+    dict(scene="sky",   gap=0.8, hi="[punch] धमाका!", cap=["DHAMAKA!"], boom=True),
+    dict(scene="energy", gap=0.3, hi="ये हिरोशिमा बम से… | [punch] सैकड़ों गुना | ताक़तवर था।",
+         cap=["Yeh HIROSHIMA BOMB se...", "SAIKDON GUNA", "taakatwar tha."]),
+    dict(scene="trees", gap=0.35, hi="[fast] दो हज़ार वर्ग किलोमीटर में, | [slow] करीब आठ करोड़ पेड़… | ज़मीन पर | [punch] बिछ गए!",
+         cap=["2,000 sq km mein,", "kareeb 8 CRORE PED...", "zameen par", "BICHH GAYE!"]),
+    dict(scene="crater", gap=0.3, hi="[soft] लेकिन… | [slow] सबसे बड़ा रहस्य? | वहाँ कोई गड्ढा… | [punch] ही नहीं मिला!",
+         cap=["Lekin...", "sabse bada RAHASYA?", "Wahan koi GADDHA...", "hi NAHI MILA!"]),
+    dict(scene="end",   gap=2.6, hi="[soft] तो आखिर… | [slow] वहाँ फटा | [punch] क्या था?",
          cap=["Toh aakhir...", "wahan PHATA", "KYA THA?"]),
 ]
 LEAD = 0.45
@@ -122,28 +122,85 @@ def vertical_grad(top, bottom, y0=0, y1=H):
 
 
 # ----------------------------------------------------------------------------- 1. narration
+# Delivery markup inside `hi`: phrases separated by "|", each may start with a tag.
+#   [slow] tense build-up   [soft] quiet, suspense   [punch] the reveal word   [fast] quick aside
+STYLES = {  # speed, gain, pause after (s)
+    "":      (1.00, 0.95, 0.22),
+    "slow":  (0.86, 0.90, 0.45),
+    "soft":  (0.84, 0.72, 0.55),
+    "punch": (1.02, 1.25, 0.30),
+    "fast":  (1.12, 0.95, 0.15),
+}
+# deeper documentary tone, presence boost, compression, light room echo (duration preserved)
+VOICE_FX = ("asetrate=24000*0.94,aresample=24000,atempo=1.0638,bass=g=4:f=120,"
+            "equalizer=f=3000:t=q:w=1:g=3,acompressor=threshold=-20dB:ratio=4:attack=5:release=120:makeup=4,"
+            "aecho=0.8:0.6:45|90:0.16|0.08")
+DRAMATIC = os.environ.get("DRAMATIC", "1") == "1"
+
+
+def parse_phrases(hi):
+    out = []
+    for ph in hi.split("|"):
+        ph = ph.strip()
+        tag = ""
+        if ph.startswith("["):
+            tag, ph = ph[1:].split("]", 1)
+            ph = ph.strip()
+        out.append((ph, tag))
+    return out
+
+
+def tts_cached(k_holder, text, speed):
+    import hashlib
+    h = hashlib.md5(f"{VOICE}|{speed}|{text}".encode()).hexdigest()[:12]
+    p = os.path.join(OUT, "tts", f"{h}.wav")
+    if not os.path.exists(p):
+        from kokoro_onnx import Kokoro
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        if not k_holder:
+            k_holder.append(Kokoro(os.path.join(DATA, "kokoro.onnx"), os.path.join(DATA, "voices.bin")))
+        s, sr = k_holder[0].create(text, voice=VOICE, speed=speed, lang="hi")
+        assert sr == SR
+        sf.write(p, s, SR)
+    return sf.read(p, dtype="float32")[0]
+
+
 def build_voice():
-    from kokoro_onnx import Kokoro
-    k = None
-    for i, seg in enumerate(SEGMENTS):
-        p = os.path.join(OUT, f"seg_{i}_{VOICE}.wav")
-        if not os.path.exists(p):
-            k = k or Kokoro(os.path.join(DATA, "kokoro.onnx"), os.path.join(DATA, "voices.bin"))
-            s, sr = k.create(seg["hi"], voice=VOICE, speed=1.08, lang="hi")
-            assert sr == SR
-            sf.write(p, s, SR)
-        seg["wav"], _ = sf.read(p, dtype="float32")
-        seg["wav"] = trim_silence(seg["wav"])
+    kh = []
+    for seg in SEGMENTS:
+        pieces, bounds, pos = [], [], 0
+        phrases = parse_phrases(seg["hi"])
+        for j, (txt, tag) in enumerate(phrases):
+            speed, gain, pause = STYLES[tag] if DRAMATIC else (1.08, 0.95, 0.12)
+            w = trim_silence(tts_cached(kh, txt, speed))
+            w = w / max(1e-6, np.abs(w).max()) * 0.8 * gain
+            bounds.append((pos, pos + len(w)))
+            pieces.append(w)
+            pos += len(w)
+            if j < len(phrases) - 1:
+                pieces.append(np.zeros(int(pause * SR), np.float32))
+                pos += int(pause * SR)
+        wav = np.concatenate(pieces).astype(np.float32)
+        if DRAMATIC:
+            raw = os.path.join(OUT, "tts", "_tmp_in.wav"); fxd = os.path.join(OUT, "tts", "_tmp_out.wav")
+            sf.write(raw, wav, SR)
+            subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", raw, "-af", VOICE_FX, "-ar", str(SR), fxd], check=True)
+            wav2 = sf.read(fxd, dtype="float32")[0]
+            wav = np.zeros_like(wav); n = min(len(wav), len(wav2)); wav[:n] = wav2[:n]
+        seg["wav"], seg["bounds"] = wav, bounds
     t = LEAD
     for seg in SEGMENTS:
         seg["start"] = t
         seg["dur"] = len(seg["wav"]) / SR
         seg["end"] = t + seg["dur"]
         t = seg["end"] + seg["gap"]
-        # caption chunk timings proportional to text length
-        w = np.array([len(c) + 4 for c in seg["cap"]], float)
-        edges = seg["start"] + np.concatenate([[0], np.cumsum(w) / w.sum()]) * seg["dur"]
-        seg["chunks"] = [(seg["cap"][j], edges[j], edges[j + 1]) for j in range(len(seg["cap"]))]
+        if len(seg["bounds"]) == len(seg["cap"]):  # one caption chunk per spoken phrase: exact sync
+            seg["chunks"] = [(c, t0 + a / SR, t0 + b / SR) for c, (a, b), t0 in
+                             zip(seg["cap"], seg["bounds"], [seg["start"]] * len(seg["cap"]))]
+        else:  # fall back: proportional to text length
+            w = np.array([len(c) + 4 for c in seg["cap"]], float)
+            edges = seg["start"] + np.concatenate([[0], np.cumsum(w) / w.sum()]) * seg["dur"]
+            seg["chunks"] = [(seg["cap"][j], edges[j], edges[j + 1]) for j in range(len(seg["cap"]))]
     return t
 
 
@@ -386,7 +443,7 @@ def scene_map(t, dur, ctx):
     SS = 2
     big = Image.new("RGB", (W * SS, H * SS), (10, 12, 18))
     d = ImageDraw.Draw(big)
-    z = smooth((t - 0.55) / 2.3)
+    z = smooth((t - 0.55) / max(2.3, dur * 0.6))
     s = lerp(9.5, 30, z ** 1.4) * SS
     c0, c1 = world(97, 61.5), world(*TUN)
     cx, cy = lerp(c0[0], c1[0], z), lerp(c0[1], c1[1], z)
@@ -413,11 +470,12 @@ def scene_map(t, dur, ctx):
         d.text((px, py), "RUSSIA", font=F(86), fill=(255, 255, 255), anchor="mm",
                stroke_width=5, stroke_fill=(90, 0, 10))
     # SIBERIA label fades in while zooming
-    a2 = smooth((t - 1.6) / 0.5)
+    sib = max(1.6, dur * 0.35)
+    a2 = smooth((t - sib) / 0.5)
     if a2 > 0:
         sx_, sy_ = world(84, 57.5)
         px, py = W / 2 + (sx_ - cx) * s / SS, H * 0.47 - (sy_ - cy) * s / SS
-        label_box(img, px, py, "SIBERIA", 54, bg=(20, 20, 26), scale=back_out((t - 1.6) / 0.35))
+        label_box(img, px, py, "SIBERIA", 54, bg=(20, 20, 26), scale=back_out((t - sib) / 0.35))
 
     # pin drop on Tunguska
     pt = ctx["pin"] - ctx["scene_start"]
@@ -731,7 +789,7 @@ def build_timeline(total):
         boom=boom,
         pin=SEGMENTS[0]["start"] + SEGMENTS[0]["dur"] * 0.62,
         stamp2=s_en["chunks"][1][1],
-        stamp=s_cr["chunks"][2][1] + 0.25,
+        stamp=s_cr["chunks"][3][1],
         end_hit=s_end["chunks"][2][1],
         ring=tr_scene["start"] + 0.35,
         cuts=[s["start"] for s in scenes[1:] if s["name"] != "sky"] + [scenes[1]["start"]],

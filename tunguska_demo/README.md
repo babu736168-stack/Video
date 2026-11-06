@@ -5,7 +5,7 @@ no AI image or video generator, no paid APIs.
 
 | Layer | How |
 |---|---|
-| Narration | [Kokoro](https://github.com/thewh1teagle/kokoro-onnx) offline TTS, Hindi voice `hm_omega` |
+| Narration | [Kokoro](https://github.com/thewh1teagle/kokoro-onnx) offline TTS, Hindi voice `hm_omega`, with dramatic delivery markup (`[slow]`, `[soft]`, `[punch]`, `[fast]`, phrases split by `|`) and a documentary voice FX chain. `DRAMATIC=0` gives the plain read. |
 | Music & SFX | Synthesised in numpy/scipy (drone, heartbeat, whooshes, boom, ticks, riser) with side-chain ducking |
 | Visuals | Every frame drawn with Pillow: 3D-ish map (Natural Earth data), fireball/shockwave, dot chart, tree-fall top view, crater cross-section |
 | Captions | Word-chunk pop-in captions, CAPS words highlighted yellow, timed to the narration |

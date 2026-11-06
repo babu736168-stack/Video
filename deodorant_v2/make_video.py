@@ -27,6 +27,7 @@ F, label_box, clamp, smooth, ease_out, back_out, lerp = E.F, E.label_box, E.clam
 RED, YELLOW, WHITE, DARK = E.RED, E.YELLOW, E.WHITE, (20, 20, 26)
 OUT = os.path.join(HERE, "out"); os.makedirs(OUT, exist_ok=True)
 WORK = os.environ.get("WORK_DIR", os.path.join(OUT, "work")); os.makedirs(WORK, exist_ok=True)
+ESR_DIR = os.environ.get("ESR_DIR", os.path.join(OUT, "esr"))  # AI-upscaled key frames <shot>_<k>.png
 E.OUT = OUT
 E.LANG, E.VOICE = "en-us", os.environ.get("VOICE", "am_michael")
 E.SPEED, E.TEMPO, E.PAUSE_SCALE = 1.05, 1.08, 0.8
@@ -111,10 +112,15 @@ def prepare_shot(shot, dur):
     n = int(round(dur * FPS))
     ext = os.path.splitext(src)[1].lower()
     if ext in (".gif", ".png", ".jpg", ".jpeg", ".webp"):
-        frames = [f.convert("RGB") for f in ImageSequence.Iterator(Image.open(src))]
-        if len(frames) > 24:  # long GIF: sample it
-            frames = frames[:: len(frames) // 24 + 1]
-        big = [cover(f).filter(ImageFilter.UnsharpMask(radius=2.2, percent=90, threshold=2)) for f in frames]
+        esr = sorted(glob.glob(os.path.join(ESR_DIR, f"{shot}_*.png"))) if not os.environ.get("MEDIA_DIR") else []
+        if esr:  # Real-ESRGAN x4 key frames (see README): far cleaner than plain resizing
+            frames = [Image.open(p).convert("RGB") for p in esr]
+            big = [cover(f).filter(ImageFilter.UnsharpMask(radius=1.2, percent=40, threshold=3)) for f in frames]
+        else:
+            frames = [f.convert("RGB") for f in ImageSequence.Iterator(Image.open(src))]
+            if len(frames) > 24:  # long GIF: sample it
+                frames = frames[:: len(frames) // 24 + 1]
+            big = [cover(f).filter(ImageFilter.UnsharpMask(radius=2.2, percent=90, threshold=2)) for f in frames]
         arr = [np.asarray(b, np.float32) for b in big]
         p = subprocess.Popen(enc_cmd(dst), stdin=subprocess.PIPE)
         for i in range(n):

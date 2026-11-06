@@ -10,3 +10,9 @@ python3 make_video.py --preview  # still frames only
 
 Facts used: Roopkund lake (~5,000 m / ~16,000 ft, Uttarakhand); skeletons found 1942;
 2019 DNA study found groups who died ~1,000 years apart, one with Eastern-Mediterranean ancestry.
+
+## English version
+
+```bash
+VIDEO_LANG=en python3 make_video.py   # -> out/roopkund_demo_en.mp4 (voice am_michael, English captions + labels)
+```

@@ -46,6 +46,7 @@ SEGMENTS = [
 ]
 LEAD = 0.45
 VOICE = os.environ.get("VOICE", "hm_omega")
+LANG = os.environ.get("TTS_LANG", "hi")  # "hi" Hindi, "en-us" / "en-gb" English
 
 
 # ----------------------------------------------------------------------------- helpers
@@ -157,14 +158,14 @@ def parse_phrases(hi):
 
 def tts_cached(k_holder, text, speed):
     import hashlib
-    h = hashlib.md5(f"{VOICE}|{speed}|{text}".encode()).hexdigest()[:12]
+    h = hashlib.md5(f"{VOICE}|{LANG}|{speed}|{text}".encode()).hexdigest()[:12]
     p = os.path.join(OUT, "tts", f"{h}.wav")
     if not os.path.exists(p):
         from kokoro_onnx import Kokoro
         os.makedirs(os.path.dirname(p), exist_ok=True)
         if not k_holder:
             k_holder.append(Kokoro(os.path.join(DATA, "kokoro.onnx"), os.path.join(DATA, "voices.bin")))
-        s, sr = k_holder[0].create(text, voice=VOICE, speed=speed, lang="hi")
+        s, sr = k_holder[0].create(text, voice=VOICE, speed=speed, lang=LANG)
         assert sr == SR
         sf.write(p, s, SR)
     return sf.read(p, dtype="float32")[0]

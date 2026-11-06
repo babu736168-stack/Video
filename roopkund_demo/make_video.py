@@ -31,7 +31,9 @@ os.makedirs(E.OUT, exist_ok=True)
 # Facts: Roopkund lake, Uttarakhand, ~5,000 m (~16,000 ft). Skeletons found 1942.
 # 2019 DNA study (Nature Communications): distinct groups who died ~1,000 years apart
 # (~800 CE South-Asian group, ~1800 CE group with Eastern-Mediterranean ancestry).
-E.SEGMENTS = [
+VIDEO_LANG = os.environ.get("VIDEO_LANG", "hi")   # "hi" = Hinglish, "en" = English
+
+SEGMENTS_HI = [
     dict(scene="india", gap=0.3, hi="[slow] हिमालय में, सोलह हज़ार फ़ीट पर, एक झील है। | [punch] रूपकुंड!",
          cap=["Himalaya mein, 16,000 FEET par, ek jheel hai.", "ROOPKUND!"]),
     dict(scene="lake", gap=0.3, hi="उन्नीस सौ बयालीस में, यहाँ कुछ ऐसा मिला… | [punch] सैकड़ों इंसानी कंकाल!",
@@ -43,6 +45,31 @@ E.SEGMENTS = [
     dict(scene="end", gap=2.6, hi="[soft] तो आखिर… | [punch] वो यहाँ क्यों आए थे?",
          cap=["Toh aakhir...", "Woh yahan KYUN aaye the?"]),
 ]
+
+SEGMENTS_EN = [
+    dict(scene="india", gap=0.3, hi="[slow] Sixteen thousand feet up in the Himalayas, there's a lake. | [punch] Roopkund!",
+         cap=["16,000 FEET up in the HIMALAYAS, there's a lake.", "ROOPKUND!"]),
+    dict(scene="lake", gap=0.3, hi="In nineteen forty-two, something terrifying was found here... | [punch] Hundreds of human skeletons!",
+         cap=["In 1942, something TERRIFYING was found here...", "HUNDREDS of human SKELETONS!"]),
+    dict(scene="dna", gap=0.3, hi="[soft] But... | DNA tests changed everything. | [punch] These people died centuries apart!",
+         cap=["But...", "DNA TESTS changed everything.", "These people died CENTURIES apart!"]),
+    dict(scene="world", gap=0.3, hi="[punch] And some of them weren't from India at all! | [slow] Their DNA matched people from the Mediterranean!",
+         cap=["And some of them weren't from INDIA at all!", "Their DNA matched people from the MEDITERRANEAN!"]),
+    dict(scene="end", gap=2.6, hi="[soft] So... | [punch] why did they come here?",
+         cap=["So...", "Why did they COME HERE?"]),
+]
+
+LABELS = {
+    "hi": dict(skel="300–800 KANKAAL!", est="(anumaan)", dna="DNA JAANCH (2019)", gap="~1000 SAAL KA FARAK!",
+               away="~5,000 KM DOOR SE?", opts=["TEERTH YATRA?", "VYAPAAR?", "KUCH AUR?"], cta="COMMENT MEIN BATAO"),
+    "en": dict(skel="300–800 SKELETONS!", est="(estimate)", dna="DNA TEST (2019)", gap="~1000 YEARS APART!",
+               away="~5,000 KM AWAY?", opts=["PILGRIMAGE?", "TRADE?", "SOMETHING ELSE?"], cta="COMMENT BELOW"),
+}
+L = LABELS[VIDEO_LANG]
+E.SEGMENTS = SEGMENTS_EN if VIDEO_LANG == "en" else SEGMENTS_HI
+if VIDEO_LANG == "en":
+    E.LANG = "en-us"
+    E.VOICE = os.environ.get("VOICE", "am_michael")
 
 ROOP = (79.73, 30.26)   # Roopkund (lon, lat)
 CRETE = (24.9, 35.2)
@@ -236,10 +263,10 @@ def scene_lake(t, dur, ctx):
         flash = clamp(1 - (t - ht) / 0.25)
         if flash > 0 and t >= ht:
             img = Image.blend(img, Image.new("RGB", (W, H), (255, 255, 255)), flash * 0.5)
-        label_box(img, W / 2, 470, "300–800 KANKAAL!", 92, scale=back_out((t - ht - 0.15) / 0.3), rot=-4)
+        label_box(img, W / 2, 470, L["skel"], 92, scale=back_out((t - ht - 0.15) / 0.3), rot=-4)
         d2 = ImageDraw.Draw(img)
         if t > ht + 0.4:
-            d2.text((W / 2, 560), "(anumaan)", font=F(34, "semi"), fill=(220, 225, 235), anchor="mm",
+            d2.text((W / 2, 560), L["est"], font=F(34, "semi"), fill=(220, 225, 235), anchor="mm",
                     stroke_width=3, stroke_fill=(0, 0, 0))
     label_box(img, W / 2, 230, "ROOPKUND, 1942", 66, bg=(20, 20, 26), scale=back_out(t / 0.3))
     return img
@@ -276,7 +303,7 @@ def scene_dna(t, dur, ctx):
                        fill=tuple(v // 3 for v in col))
     img = add_glow(img, glow, 8)
     d = ImageDraw.Draw(img)
-    label_box(img, W / 2, 230, "DNA JAANCH (2019)", 64, scale=back_out(t / 0.3))
+    label_box(img, W / 2, 230, L["dna"], 64, scale=back_out(t / 0.3))
     if t > tl - 0.05:
         k = t - tl
         ly = 1110
@@ -290,7 +317,7 @@ def scene_dna(t, dur, ctx):
                     skull(d, x + dx, ly - 70 - (12 if j == 1 else 0), 1.25 * back_out(kk))
                 label_box(img, x, ly + 75, f"~{yr} CE", 50, bg=(20, 20, 26), scale=back_out(kk))
         if k > 0.8:
-            label_box(img, W / 2, 900, "~1000 SAAL KA FARAK!", 70, scale=back_out((k - 0.8) / 0.3), rot=-3)
+            label_box(img, W / 2, 900, L["gap"], 70, scale=back_out((k - 0.8) / 0.3), rot=-3)
     return img
 
 
@@ -316,16 +343,16 @@ def scene_world(t, dur, ctx):
     if prog > 0.02:
         (x1, y1), (x2, y2) = pts[-2], pts[-1]
         ang = math.atan2(y2 - y1, x2 - x1)
-        L = 36
+        al = 36
         d.polygon([(x2 + math.cos(ang) * 10, y2 + math.sin(ang) * 10),
-                   (x2 - L * math.cos(ang - 0.5), y2 - L * math.sin(ang - 0.5)),
-                   (x2 - L * math.cos(ang + 0.5), y2 - L * math.sin(ang + 0.5))], fill=YELLOW, outline=(0, 0, 0))
+                   (x2 - al * math.cos(ang - 0.5), y2 - al * math.sin(ang - 0.5)),
+                   (x2 - al * math.cos(ang + 0.5), y2 - al * math.sin(ang + 0.5))], fill=YELLOW, outline=(0, 0, 0))
     for x, y, col in ((ax, ay, YELLOW), (bx, by, RED)):
         d.ellipse((x - 14, y - 14, x + 14, y + 14), fill=col, outline=WHITE, width=4)
     label_box(img, ax + 20, ay + 95, "E. MEDITERRANEAN", 40, bg=(140, 100, 0), scale=back_out((t - 0.15) / 0.3))
     label_box(img, bx, by + 90, "ROOPKUND", 44, scale=back_out((t - 0.9) / 0.3))
     if t > 1.1:
-        label_box(img, W / 2, 330, "~5,000 KM DOOR SE?", 74, bg=(20, 20, 26), scale=back_out((t - 1.1) / 0.3))
+        label_box(img, W / 2, 330, L["away"], 74, bg=(20, 20, 26), scale=back_out((t - 1.1) / 0.3))
     label_box(img, W / 2, 210, "DNA MATCH", 62, scale=back_out(t / 0.3))
     return img
 
@@ -342,13 +369,13 @@ def scene_end(t, dur, ctx):
     if sz > 5:
         d.text((W / 2, 620), "?", font=F(sz), fill=(255, 226, 120), anchor="mm", stroke_width=6, stroke_fill=(60, 20, 0))
     hit = ctx["end_hit"] - ctx["scene_start"]
-    for i, opt in enumerate(["TEERTH YATRA?", "VYAPAAR?", "KUCH AUR?"]):
+    for i, opt in enumerate(L["opts"]):
         st = hit + 0.2 + i * 0.3
         if t > st:
             label_box(img, W / 2, 1000 + i * 120, opt, 64, bg=(245, 245, 248), fg=(15, 15, 20), scale=back_out((t - st) / 0.3))
     ct = hit + 1.2
     if t > ct:
-        label_box(img, W / 2, 1680, "COMMENT MEIN BATAO", 64, scale=back_out((t - ct) / 0.3))
+        label_box(img, W / 2, 1680, L["cta"], 64, scale=back_out((t - ct) / 0.3))
         E.down_arrow(d, W / 2, 1830 + 18 * math.sin(t * 9), 0.9)
     return img
 
@@ -421,7 +448,7 @@ def build_audio(total, ctx):
     E.place(fx, E.sfx_thud(), ctx["end_hit"], 0.9)
     mix = voice + music * 0.33 + fx * 0.42
     mix = np.tanh(mix * 1.1) / np.tanh(1.1)
-    path = os.path.join(E.OUT, "mix.wav")
+    path = os.path.join(E.OUT, f"mix_{VIDEO_LANG}.wav")
     sf.write(path, mix[: int(total * SR)].astype(np.float32), SR)
     return path
 
@@ -443,7 +470,7 @@ def main():
                 Image.frombytes("RGB", (W, H), E.render_frame(fi)).resize((360, 640)).save(
                     os.path.join(pdir, f"{fi:04d}_{s['name']}.png"))
         return
-    dst = os.path.join(E.OUT, "roopkund_demo.mp4")
+    dst = os.path.join(E.OUT, "roopkund_demo.mp4" if VIDEO_LANG == "hi" else f"roopkund_demo_{VIDEO_LANG}.mp4")
     cmd = ["ffmpeg", "-y", "-v", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS),
            "-i", "-", "-i", audio, "-af", "loudnorm=I=-14:TP=-1.0:LRA=9", "-ar", "48000",
            "-c:v", "libx264", "-preset", "medium", "-crf", "19", "-pix_fmt", "yuv420p", "-movflags", "+faststart",

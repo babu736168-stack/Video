@@ -142,6 +142,31 @@ DRAMATIC = os.environ.get("DRAMATIC", "1") == "1"
 SPEED = float(os.environ.get("SPEED", "1.45"))         # global talking-speed multiplier
 PAUSE_SCALE = float(os.environ.get("PAUSE_SCALE", "0.6"))  # shrinks pauses between phrases/segments
 TEMPO = float(os.environ.get("TEMPO", "1.6"))  # final playback-speed of the narration (pitch preserved)
+# CONTINUOUS=1: each scene's narration is one TTS call (natural, unbroken delivery). "|" then only marks
+# caption boundaries, and [tags] are ignored. CONTINUOUS=0 = the older per-sentence dramatic mode.
+CONTINUOUS = os.environ.get("CONTINUOUS", "1") == "1"
+LIGHT_FX = "bass=g=3:f=120,equalizer=f=3000:t=q:w=1:g=2,acompressor=threshold=-20dB:ratio=3:attack=5:release=120:makeup=3"
+
+
+def silent_runs(w, min_ms=40):
+    fr = int(0.01 * SR)
+    n = len(w) // fr
+    if n == 0:
+        return []
+    rms = np.sqrt(np.mean(w[: n * fr].reshape(n, fr) ** 2, axis=1))
+    silent = rms < 0.04 * rms.max()
+    runs, i = [], 0
+    while i < n:
+        if silent[i]:
+            j = i
+            while j < n and silent[j]:
+                j += 1
+            if i > 0 and j < n and (j - i) * 10 >= min_ms:
+                runs.append((i * fr, j * fr))
+            i = j
+        else:
+            i += 1
+    return runs
 
 
 def parse_phrases(hi):
@@ -180,6 +205,33 @@ def build_voice():
     for seg in SEGMENTS:
         pieces, bounds, pos = [], [], 0
         phrases = parse_phrases(seg["hi"])
+        if CONTINUOUS:
+            # whole scene narration in ONE TTS call: no stop-start between sentences
+            text = " ".join(p for p, _ in phrases)
+            dry = trim_silence(tts_cached(kh, text, round(SPEED, 3)))
+            dry = dry / max(1e-6, np.abs(dry).max()) * 0.85
+            w = dry
+            if TEMPO != 1 or LIGHT_FX:
+                sf.write(tmp_in, np.concatenate([dry, np.zeros(int(0.2 * SR), np.float32)]), SR)
+                fx = ",".join(x for x in [LIGHT_FX, f"atempo={TEMPO}" if TEMPO != 1 else ""] if x)
+                subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", tmp_in, "-af", fx, "-ar", str(SR), tmp_out], check=True)
+                w = trim_silence(sf.read(tmp_out, dtype="float32")[0], 0.004)
+            seg["wav"] = w.astype(np.float32)
+            # caption boundaries: expected position from text length, snapped to the nearest real pause
+            lens = np.array([len(p) + 2 for p, _ in phrases], float)
+            expect = np.cumsum(lens)[:-1] / lens.sum() * len(dry)
+            runs = silent_runs(dry)
+            cuts, used = [], set()
+            for e in expect:
+                best = min((r for r in runs if r not in used), key=lambda r: abs((r[0] + r[1]) / 2 - e), default=None)
+                if best is not None and abs((best[0] + best[1]) / 2 - e) < 0.25 * len(dry):
+                    used.add(best); cuts.append(best[1])
+                else:
+                    cuts.append(int(e))
+            cuts = sorted(cuts)
+            starts = [0] + [int(c / TEMPO) for c in cuts]
+            seg["bounds"] = [(a, b) for a, b in zip(starts, starts[1:] + [len(w)])]
+            continue
         for j, (txt, tag) in enumerate(phrases):
             speed, gain, pause = STYLES[tag] if DRAMATIC else (1.08, 0.95, 0.12)
             speed, pause = round(speed * SPEED, 3), pause * PAUSE_SCALE

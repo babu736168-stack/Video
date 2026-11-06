@@ -56,8 +56,8 @@ E.SEGMENTS = [
     dict(scene="study", gap=0.3,
          hi="In one Danish study, forty-two percent said fragrances irritated their eyes or airways.",
          cap=["In one Danish study, 42% said fragrances irritated their EYES or AIRWAYS."]),
-    dict(scene="end", gap=2.4, hi="So… is your spray really worth it?",
-         cap=["So... is your spray REALLY WORTH IT?"]),
+    dict(scene="end", gap=2.4, hi="So… | is your spray really worth it?",
+         cap=["So...", "Is your spray REALLY WORTH IT?"]),
 ]
 
 

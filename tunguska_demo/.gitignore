@@ -1,0 +1,3 @@
+data/
+out/*
+!out/tunguska_demo.mp4

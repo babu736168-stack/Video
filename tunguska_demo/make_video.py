@@ -148,6 +148,79 @@ CONTINUOUS = os.environ.get("CONTINUOUS", "1") == "1"
 LIGHT_FX = "bass=g=3:f=120,equalizer=f=3000:t=q:w=1:g=2,acompressor=threshold=-20dB:ratio=3:attack=5:release=120:makeup=3"
 
 
+VOICE_FILE = os.environ.get("VOICE_FILE", "")      # use a recorded / VoiceStudio narration instead of TTS
+VOICE_FILE_TEMPO = float(os.environ.get("VOICE_FILE_TEMPO", "1.0"))  # optional speed-up of that file
+
+
+def use_voice_file(path):
+    """Fit the video to an uploaded narration of the WHOLE script.
+    Every caption chunk ("|" piece) must be spoken in order; the file is cut at the
+    natural pauses nearest to where each piece is expected to start."""
+    os.makedirs(os.path.join(OUT, "tts"), exist_ok=True)
+    wav_path = os.path.join(OUT, "tts", "_voicefile.wav")
+    af = "silenceremove=start_periods=1:start_threshold=-45dB"
+    if VOICE_FILE_TEMPO != 1:
+        af += f",atempo={VOICE_FILE_TEMPO}"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", path, "-ac", "1", "-ar", str(SR), "-af", af, wav_path], check=True)
+    v = trim_silence(sf.read(wav_path, dtype="float32")[0], 0.004)
+    v = v / max(1e-6, np.abs(v).max()) * 0.9
+    pieces = [(si, p) for si, seg in enumerate(SEGMENTS) for p, _ in parse_phrases(seg["hi"])]
+    caps = [c for seg in SEGMENTS for c in seg["cap"]]
+    assert len(pieces) == len(caps), "each '|' piece needs one caption chunk"
+    lens = np.array([len(p) + 3 for _, p in pieces], float)
+    expect = np.cumsum(lens)[:-1] / lens.sum() * len(v)
+    cuts = align_cuts(expect, silent_runs(v, 60), len(v))
+    starts = [0] + cuts
+    ends = cuts + [len(v)]
+    k = 0
+    t0 = LEAD
+    for si, seg in enumerate(SEGMENTS):
+        n = len(seg["cap"])
+        a, b = starts[k], ends[k + n - 1]
+        seg["start"] = t0 + a / SR
+        seg["wav"] = v[a:b]
+        seg["dur"] = (b - a) / SR
+        seg["end"] = seg["start"] + seg["dur"]
+        seg["chunks"] = [(seg["cap"][j], t0 + starts[k + j] / SR, t0 + ends[k + j] / SR) for j in range(n)]
+        k += n
+        print(f"  voice {seg['dur']:5.2f}s  " + " | ".join(f"{c} @{x - seg['start']:.2f}" for c, x, _ in seg["chunks"]))
+    return t0 + len(v) / SR + SEGMENTS[-1]["gap"]
+
+
+def align_cuts(expect, runs, total):
+    """Pick one pause per expected boundary, in order (dynamic programming).
+    Cost = distance from the expected position, minus a bonus for long pauses
+    (sentence ends pause longer than commas). Falls back to the expected position."""
+    K, M = len(expect), len(runs)
+    if K == 0:
+        return []
+    if M < K:
+        return [int(e) for e in expect]
+    mids = [(a + b) / 2 for a, b in runs]
+    lens = [(b - a) / SR for a, b in runs]
+    def cost(k, m):
+        return ((mids[m] - expect[k]) / (0.12 * total)) ** 2 - 2.5 * min(lens[m], 0.6)
+    INF = float("inf")
+    D = [[INF] * M for _ in range(K)]
+    P = [[-1] * M for _ in range(K)]
+    for m in range(M):
+        D[0][m] = cost(0, m)
+    for k in range(1, K):
+        best, arg = INF, -1
+        for m in range(M):
+            if m >= 1 and D[k - 1][m - 1] < best:
+                best, arg = D[k - 1][m - 1], m - 1
+            if arg >= 0:
+                D[k][m] = best + cost(k, m)
+                P[k][m] = arg
+    m = min(range(M), key=lambda j: D[K - 1][j])
+    picked = []
+    for k in range(K - 1, -1, -1):
+        picked.append(m)
+        m = P[k][m]
+    return [runs[j][1] for j in reversed(picked)]
+
+
 def silent_runs(w, min_ms=40):
     fr = int(0.01 * SR)
     n = len(w) // fr
@@ -200,6 +273,8 @@ def build_voice():
     """Each "|" piece is a COMPLETE sentence (or a deliberate one-word cliffhanger), spoken in its
     own TTS call so the intonation always finishes. Voice FX + speed-up are applied per piece, and the
     dramatic pauses are inserted afterwards in real time, so they survive the speed-up."""
+    if VOICE_FILE:
+        return use_voice_file(VOICE_FILE)
     kh = []
     tmp_in, tmp_out = os.path.join(OUT, "tts", "_in.wav"), os.path.join(OUT, "tts", "_out.wav")
     for seg in SEGMENTS:

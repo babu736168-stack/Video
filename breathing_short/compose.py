@@ -14,6 +14,17 @@ WORK = os.path.join(OUT, "work"); os.makedirs(WORK, exist_ok=True)
 TL = json.load(open(os.path.join(OUT, "timeline.json")))
 SRC_FPS, FPS, SR = int(os.environ.get("SRC_FPS", 15)), 30, 48000
 SHOTS = {s["id"]: s for s in TL["shots"]}
+WIDE = os.environ.get("ASPECT", "16:9") == "16:9"
+W_, H_ = (1920, 1080) if WIDE else (1080, 1920)
+LAYOUT = dict(CAPSIZE="66" if WIDE else "78", CAPMARGIN="70" if WIDE else "520", BIGSIZE="170" if WIDE else "200",
+              STAMP="1480,300" if WIDE else "540,560", O2POS="380,180" if WIDE else "230,380",
+              CO2POS="1540,180" if WIDE else "850,380", ATPPOS="1450,300" if WIDE else "760,420")
+
+
+def lay(text):
+    for k, v in LAYOUT.items():
+        text = text.replace(k, v)
+    return text.replace("W_", str(W_)).replace("H_", str(H_))
 
 
 def run(cmd):
@@ -29,7 +40,7 @@ def shot_clips():
         src = os.path.join(OUT, "frames", s["id"], "%04d.png")
         if not os.path.exists(out):
             run(["ffmpeg", "-y", "-v", "error", "-framerate", str(SRC_FPS), "-i", src, "-vf",
-                 "scale=1080:1920:flags=lanczos,unsharp=5:5:0.7:5:5:0.0,"
+                 f"scale={W_}:{H_}:flags=lanczos,unsharp=5:5:0.7:5:5:0.0,"
                  f"minterpolate=fps={FPS}:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1,"
                  f"tpad=stop_mode=clone:stop_duration=1,trim=duration={dur:.4f},setpts=PTS-STARTPTS,"
                  "eq=saturation=1.12:contrast=1.04",
@@ -52,15 +63,15 @@ def captions():
     ass = os.path.join(WORK, "caps.ass")
     head = """[Script Info]
 ScriptType: v4.00+
-PlayResX: 1080
-PlayResY: 1920
+PlayResX: W_
+PlayResY: H_
 WrapStyle: 0
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Cap,Inter Black,78,&H00FFFFFF,&H00FFFFFF,&H00101010,&H90000000,-1,0,0,0,100,100,0,0,1,6,4,2,60,60,520,1
+Style: Cap,Inter Black,CAPSIZE,&H00FFFFFF,&H00FFFFFF,&H00101010,&H90000000,-1,0,0,0,100,100,0,0,1,6,4,2,60,60,CAPMARGIN,1
 Style: Tag,Inter Black,92,&H00FFFFFF,&H00FFFFFF,&H00101010,&H90000000,-1,0,0,0,100,100,0,0,1,6,3,5,60,60,0,1
-Style: Big,Inter Black,200,&H0018D8FF,&H00FFFFFF,&H00101010,&H90000000,-1,0,0,0,100,100,0,0,1,10,8,5,60,60,0,1
+Style: Big,Inter Black,BIGSIZE,&H0018D8FF,&H00FFFFFF,&H00101010,&H90000000,-1,0,0,0,100,100,0,0,1,10,8,5,60,60,0,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -73,18 +84,18 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     # "MYTH!" stamp on "lactic acid isn't the villain"
     c = next(c for c in SHOTS["lactate"]["caps"] if "lactic" in c["text"])
     ev.append(f"Dialogue: 1,{ts(c['t0'])},{ts(c['t1'] + 0.9)},Big,,0,0,0,,"
-              r"{\pos(540,560)\1c&H2020FF&\fscx40\fscy40\frz-8\t(0,140,\fscx105\fscy105)\t(140,240,\fscx90\fscy90)}MYTH!")
+              r"{\pos(STAMP)\1c&H2020FF&\fscx40\fscy40\frz-8\t(0,140,\fscx105\fscy105)\t(140,240,\fscx90\fscy90)}MYTH!")
     # gas labels in the microscopic shots
     for sid, a0 in (("mito", 0.1), ("alveoli", 0.1)):
         sh = SHOTS[sid]; t0 = sh["start"] + a0 * (sh["end"] - sh["start"])
         ev.append(f"Dialogue: 1,{ts(t0)},{ts(sh['end'] - 0.05)},Tag,,0,0,0,,"
-                  r"{\pos(230,380)\1c&HFF9A40&\fad(200,150)}O₂ in")
+                  r"{\pos(O2POS)\1c&HFF9A40&\fad(200,150)}O₂ in")
         ev.append(f"Dialogue: 1,{ts(t0 + 0.8)},{ts(sh['end'] - 0.05)},Tag,,0,0,0,,"
-                  r"{\pos(850,380)\1c&HE0C8D0&\fad(200,150)}CO₂ out")
+                  r"{\pos(CO2POS)\1c&HE0C8D0&\fad(200,150)}CO₂ out")
     sh = SHOTS["muscles"]; t0 = sh["start"] + 0.3 * (sh["end"] - sh["start"])
     ev.append(f"Dialogue: 1,{ts(t0)},{ts(sh['end'] - 0.05)},Tag,,0,0,0,,"
-              r"{\pos(760,420)\1c&H30D8FF&\fad(200,150)}ATP")
-    open(ass, "w").write(head + "\n".join(ev) + "\n")
+              r"{\pos(ATPPOS)\1c&H30D8FF&\fad(200,150)}ATP")
+    open(ass, "w").write(lay(head + "\n".join(ev) + "\n"))
     return ass
 
 

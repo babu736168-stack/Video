@@ -1,4 +1,4 @@
-# "Why do you breathe faster when you run?" — 3D body-explainer short (English, ~50 s, 1080×1920)
+# "Why do you breathe faster when you run?" — 3D body explainer (English, ~50 s, 1920×1080; vertical 1080×1920 optional)
 
 Same pipeline as `../sneeze_short` (all code: Blender/Cycles character, x-ray anatomy, Kokoro TTS,
 numpy-synthesized music/SFX, ASS pop-in captions), with a running character: the runner stays at the
@@ -21,6 +21,11 @@ so the stance foot moves exactly with the ground, and the arms swing opposite th
 | trained | easy jog, heart/muscles glow green | Train regularly, and your heart and muscles adapt, so the same pace feels easier. |
 
 ## Run
+
+Landscape 16:9 is the default. For the vertical short add `--aspect 9:16` to `shots.py` and `ASPECT=9:16`
+to `compose.py`. Own voiceover: record the 12 lines in the table below, in order, with a clear pause
+between lines, then `VOICE_FILE=my_voice.wav python3 voice.py` re-times every shot and caption to it
+(re-render afterwards, since shot lengths change). Hindi TTS: `LANG_CODE=hi python3 voice.py`.
 
 ```bash
 python3 voice.py                                                    # narration + out/timeline.json

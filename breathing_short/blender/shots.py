@@ -25,6 +25,8 @@ FPS = arg("--fps", 15)
 SPP = arg("--spp", 12)
 SCALE = arg("--scale", 0.5)
 ONLY = [s for s in arg("--only", "").split(",") if s]
+WIDE = arg("--aspect", "16:9") == "16:9"   # landscape by default; --aspect 9:16 for the vertical short
+LENS_MUL = float(os.environ.get("LENS_MUL", "1.0"))
 OUT = os.path.join(HERE, "..", "out")
 TL = json.load(open(os.path.join(OUT, "timeline.json")))
 
@@ -38,7 +40,7 @@ sc = bpy.context.scene
 sc.render.engine = "CYCLES"; sc.cycles.device = "CPU"
 sc.cycles.samples = SPP; sc.cycles.use_adaptive_sampling = True; sc.cycles.adaptive_threshold = 0.05
 sc.cycles.use_denoising = True; sc.cycles.max_bounces = 4; sc.cycles.transparent_max_bounces = 16
-sc.render.resolution_x, sc.render.resolution_y = int(1080 * SCALE), int(1920 * SCALE)
+sc.render.resolution_x, sc.render.resolution_y = (int(1920 * SCALE), int(1080 * SCALE)) if WIDE else (int(1080 * SCALE), int(1920 * SCALE))
 sc.render.use_persistent_data = True
 sc.view_settings.view_transform = "Filmic"; sc.view_settings.look = "Medium High Contrast"
 sc.view_settings.exposure = float(os.environ.get("EXPOSURE", "-0.2"))
@@ -340,6 +342,10 @@ cam.data.sensor_fit = "VERTICAL"; cam.data.sensor_height = 24.0
 cam.data.dof.use_dof = True; cam.data.clip_end = 400
 
 
+SHOT_LENS = dict(intro=0.85, muscles=0.8, mito=1.25, brain=0.85, alveoli=1.8, buffer=0.85, trained=1.15) if WIDE else {}
+CUR = None
+
+
 def look(loc, tgt, lens, fstop=4.0, roll=0.0, shake=0.0, t=0.0):
     loc, tgt = Vector(loc), Vector(tgt)
     if shake:
@@ -348,7 +354,7 @@ def look(loc, tgt, lens, fstop=4.0, roll=0.0, shake=0.0, t=0.0):
     cam.location = loc
     cam.rotation_euler = (tgt - loc).to_track_quat("-Z", "Y").to_euler()
     cam.rotation_euler.rotate_axis("Z", math.radians(roll))
-    cam.data.lens = lens; cam.data.dof.focus_distance = (tgt - loc).length; cam.data.dof.aperture_fstop = fstop
+    cam.data.lens = lens * LENS_MUL * SHOT_LENS.get(CUR, 1.0); cam.data.dof.focus_distance = (tgt - loc).length; cam.data.dof.aperture_fstop = fstop
 
 
 def L(a, b, u):
@@ -847,6 +853,7 @@ for shot in TL["shots"]:
     for path, u in frames:
         if os.path.exists(path) and not PREVIEW:
             continue
+        CUR = sid
         reset(); SHOTS[sid](u, u * dur, shot["start"] + u * dur)
         follow()
         sc.render.filepath = path; t0 = time.time()

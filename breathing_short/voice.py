@@ -82,14 +82,47 @@ def weight(s):
     return len(re.sub(r"[\W\d_]", "", s.lower())) + 3 * len(re.findall(r"[,.?!।]", s))
 
 
+def split_recording(path):
+    """Your own narration: one file with the lines in order and a pause (>= ~0.4 s) between lines.
+    The len(LINES)-1 longest pauses become the line boundaries."""
+    import subprocess as sp
+    raw = sp.run(["ffmpeg", "-v", "error", "-i", path, "-ac", "1", "-ar", str(SR), "-f", "f32le", "-"],
+                 check=True, capture_output=True).stdout
+    x = np.frombuffer(raw, np.float32).copy()
+    x /= max(1e-6, np.abs(x).max())
+    hop = int(0.02 * SR)
+    env = np.array([np.sqrt(np.mean(x[i:i + hop] ** 2)) for i in range(0, len(x) - hop, hop)])
+    quiet = env < max(0.02, np.percentile(env, 30) * 1.5)
+    gaps, i = [], 0
+    while i < len(quiet):
+        if quiet[i]:
+            j = i
+            while j < len(quiet) and quiet[j]:
+                j += 1
+            gaps.append((j - i, (i + j) // 2 * hop)); i = j
+        else:
+            i += 1
+    voiced = np.where(~quiet)[0]
+    first, last = voiced[0] * hop, (voiced[-1] + 1) * hop
+    inner = [g for g in gaps if first < g[1] < last]
+    cuts = sorted(c for _, c in sorted(inner, reverse=True)[:len(LINES) - 1])
+    if len(cuts) != len(LINES) - 1:
+        raise SystemExit(f"found {len(cuts) + 1} spoken lines, expected {len(LINES)}: leave a clear pause between lines")
+    bounds = [first] + cuts + [last]
+    return [trim(x[a:b]) for a, b in zip(bounds[:-1], bounds[1:])]
+
+
 def main():
-    from kokoro_onnx import Kokoro
-    k = Kokoro(os.path.join(DATA, "kokoro.onnx"), os.path.join(DATA, "voices.bin"))
-    pieces = []
-    for sid, text in LINES:
-        s, sr = k.create(text, voice=VOICE, speed=SPEED, lang="hi" if LANG == "hi" else "en-us")
-        assert sr == SR
-        pieces.append(trim(s.astype(np.float32)))
+    if os.environ.get("VOICE_FILE"):
+        pieces = split_recording(os.environ["VOICE_FILE"])
+    else:
+        from kokoro_onnx import Kokoro
+        k = Kokoro(os.path.join(DATA, "kokoro.onnx"), os.path.join(DATA, "voices.bin"))
+        pieces = []
+        for sid, text in LINES:
+            s, sr = k.create(text, voice=VOICE, speed=SPEED, lang="hi" if LANG == "hi" else "en-us")
+            assert sr == SR
+            pieces.append(trim(s.astype(np.float32)))
     t = LEAD
     audio = [np.zeros(int(LEAD * SR), np.float32)]
     shots = []

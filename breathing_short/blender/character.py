@@ -4,7 +4,7 @@ Everything here is code: clothing is painted onto the body by nearest-bone regio
 scalp shell, eyebrows are shrink-wrapped strips, the rig is generated from the mesh's joint helpers and
 skinned with Blender's automatic weights.
 """
-import bpy, math, os
+import bpy, math, os, bmesh
 import numpy as np
 from mathutils import Vector
 
@@ -147,8 +147,9 @@ def xray_wrap(m):
     return m
 
 
-def glow_material(name, color, strength=6.0, alpha=1.0):
-    """Hologram-style emissive material; node 'strength' (value) scales it, 'col' sets the colour."""
+def glow_material(name, color, strength=6.0, alpha=1.0, texture=None):
+    """Hologram-style emissive material; node 'strength' (value) scales it, 'col' sets the colour.
+    texture=("stripes", scale) adds muscle-fibre streaks, ("cells", scale) a mottled tissue look."""
     m, nt, out = _nodes(name)
     col = nt.nodes.new("ShaderNodeRGB"); col.name = "col"; col.outputs[0].default_value = (*color, 1)
     st = nt.nodes.new("ShaderNodeValue"); st.name = "strength"; st.outputs[0].default_value = strength
@@ -159,7 +160,28 @@ def glow_material(name, color, strength=6.0, alpha=1.0):
     mu = nt.nodes.new("ShaderNodeMath"); mu.operation = "MULTIPLY"
     nt.links.new(ma.outputs[0], mu.inputs[0]); nt.links.new(st.outputs[0], mu.inputs[1])
     em = nt.nodes.new("ShaderNodeEmission")
-    nt.links.new(col.outputs[0], em.inputs["Color"]); nt.links.new(mu.outputs[0], em.inputs["Strength"])
+    src = mu.outputs[0]
+    if texture:
+        kind, scale = texture
+        tc = nt.nodes.new("ShaderNodeTexCoord")
+        if kind == "stripes":
+            tx = nt.nodes.new("ShaderNodeTexWave"); tx.wave_type = "BANDS"; tx.bands_direction = "X"
+            tx.inputs["Scale"].default_value = scale; tx.inputs["Distortion"].default_value = 3.0
+            tx.inputs["Detail"].default_value = 3.0
+        else:
+            tx = nt.nodes.new("ShaderNodeTexVoronoi"); tx.feature = "DISTANCE_TO_EDGE"
+            tx.inputs["Scale"].default_value = scale
+        nt.links.new(tc.outputs["Object"], tx.inputs["Vector"])
+        fac = tx.outputs["Fac"] if kind == "stripes" else tx.outputs["Distance"]
+        k = nt.nodes.new("ShaderNodeMath"); k.operation = "MULTIPLY_ADD"
+        k.inputs[1].default_value = 0.6 if kind == "stripes" else 3.0; k.inputs[2].default_value = 0.55
+        nt.links.new(fac, k.inputs[0])
+        kc = nt.nodes.new("ShaderNodeMath"); kc.operation = "MINIMUM"; kc.inputs[1].default_value = 1.25
+        nt.links.new(k.outputs[0], kc.inputs[0])
+        m2 = nt.nodes.new("ShaderNodeMath"); m2.operation = "MULTIPLY"
+        nt.links.new(mu.outputs[0], m2.inputs[0]); nt.links.new(kc.outputs[0], m2.inputs[1])
+        src = m2.outputs[0]
+    nt.links.new(col.outputs[0], em.inputs["Color"]); nt.links.new(src, em.inputs["Strength"])
     tr = nt.nodes.new("ShaderNodeBsdfTransparent")
     mix = nt.nodes.new("ShaderNodeMixShader"); mix.name = "alpha"; mix.inputs["Fac"].default_value = alpha
     nt.links.new(tr.outputs[0], mix.inputs[1]); nt.links.new(em.outputs[0], mix.inputs[2])
@@ -348,6 +370,27 @@ def build_track(rng_seed=4):
         o.location = (side * rng.uniform(7.5, 30), y0, g); o.scale = (s, s, s * rng.uniform(0.9, 1.3))
         o.rotation_euler = (0, 0, rng.uniform(0, 6.3))
         movers.append((o, y0))
+    # fence (posts scroll, rails are uniform) and floodlight poles
+    metal = principled("metal", (0.55, 0.57, 0.6), rough=0.35, metal=0.8)
+    pm = bpy.data.meshes.new("post"); bm = bmesh.new()
+    bmesh.ops.create_cube(bm, size=1.0, matrix=__import__("mathutils").Matrix.Diagonal((0.05, 0.05, 1.1, 1)) @ __import__("mathutils").Matrix.Translation((0, 0, 0.5)))
+    bm.to_mesh(pm); bm.free(); pm.materials.append(metal)
+    for sx in (1, -1):
+        for i in range(56):
+            o = bpy.data.objects.new(f"post{sx}_{i}", pm); bpy.context.collection.objects.link(o)
+            y0 = -70 + i * 2.5; o.location = (sx * 5.6, y0, g); movers.append((o, y0))
+        for z in (0.55, 1.05):
+            bpy.ops.mesh.primitive_cylinder_add(radius=0.025, depth=400, location=(sx * 5.6, 0, g + z), rotation=(math.pi / 2, 0, 0))
+            bpy.context.object.data.materials.append(metal)
+    lm = bpy.data.meshes.new("pole"); bm = bmesh.new()
+    bmesh.ops.create_cone(bm, cap_ends=True, segments=10, radius1=0.12, radius2=0.07, depth=14,
+                          matrix=__import__("mathutils").Matrix.Translation((0, 0, 7)))
+    bmesh.ops.create_cube(bm, size=1.0, matrix=__import__("mathutils").Matrix.Translation((0, 0, 14.2)) @ __import__("mathutils").Matrix.Diagonal((2.2, 0.4, 1.0, 1)))
+    bm.to_mesh(lm); bm.free(); lm.materials.append(metal)
+    for sx in (1, -1):
+        for i in range(6):
+            o = bpy.data.objects.new(f"pole{sx}_{i}", lm); bpy.context.collection.objects.link(o)
+            y0 = -70 + i * 24 + (12 if sx > 0 else 0); o.location = (sx * 9.0, y0, g); movers.append((o, y0))
     # white kerb rails along both edges of the track
     rail = principled("rail", (0.9, 0.9, 0.9), rough=0.4)
     for sx in (1, -1):
@@ -357,17 +400,26 @@ def build_track(rng_seed=4):
     w = bpy.data.worlds.new("sky"); bpy.context.scene.world = w; w.use_nodes = True
     wn = w.node_tree; bg = wn.nodes["Background"]
     sky = wn.nodes.new("ShaderNodeTexSky")
-    if hasattr(sky, "sky_type"):
+    print("SKY TYPES", [e.identifier for e in sky.bl_rna.properties["sky_type"].enum_items])
+    for st_ in ("MULTIPLE_SCATTERING", "NISHITA", "HOSEK_WILKIE"):
         try:
-            sky.sky_type = "HOSEK_WILKIE"
+            sky.sky_type = st_; break
         except TypeError:
             pass
+    try:
+        sky.sun_elevation = math.radians(28); sky.sun_rotation = math.radians(200); sky.altitude = 200
+        sky.air_density = 1.2; sky.dust_density = 2.0
+    except AttributeError:
+        pass
     try:
         sky.sun_direction = Vector((0.4, -0.5, 0.75)).normalized()
         sky.turbidity = 2.5
     except AttributeError:
         pass
-    wn.links.new(sky.outputs["Color"], bg.inputs["Color"]); bg.inputs["Strength"].default_value = 0.6
+    wn.links.new(sky.outputs["Color"], bg.inputs["Color"])
+    bg.inputs["Strength"].default_value = float(os.environ.get("SKY", "0.06")) if sky.sky_type != "HOSEK_WILKIE" else 0.6
+    if hasattr(sky, "sun_disc"):
+        sky.sun_disc = False
     # sun + soft fill
     bpy.ops.object.light_add(type="SUN"); sun = bpy.context.object; sun.name = "sun"
     sun.data.energy = 3.2; sun.data.angle = math.radians(4); sun.data.color = (1.0, 0.95, 0.85)
@@ -625,6 +677,19 @@ def build_character(prefix=""):
         bone(f"{s}_ft", J[f"{s}-ankle"], J[f"{s}-foot-1"], f"{s}_sh", True)
     for b in eb:  # sensible rolls so local X bends elbows/knees
         b.roll = 0
+    # finger bones (3 per finger), rolled so a rotation about local X curls the finger toward the palm
+    for s in ("l", "r"):
+        fj = lambda f, k: J[f"{s}-finger-{f}-{k}"]
+        n = (fj(2, 1) - fj(5, 1)).cross(fj(3, 4) - fj(3, 1)).normalized()
+        if s == "r":
+            n = -n
+        for f in range(1, 6):
+            prev = f"{s}_hand"
+            for k in range(1, 4):
+                name = f"{s}_f{f}{k}"
+                b = bone(name, fj(f, k), fj(f, k + 1), prev, k > 1)
+                b.align_roll(n)
+                prev = name
     bpy.ops.object.mode_set(mode="OBJECT")
     # skin the body
     bpy.ops.object.select_all(action="DESELECT")

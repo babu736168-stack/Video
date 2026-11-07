@@ -23,7 +23,7 @@ so the stance foot moves exactly with the ground, and the arms swing opposite th
 ## Run
 
 Landscape 16:9 is the default. For the vertical short add `--aspect 9:16` to `shots.py` and `ASPECT=9:16`
-to `compose.py`. Own voiceover: record the 12 lines in the table below, in order, with a clear pause
+to `compose.py`. Own voiceover: record the 12 lines in the table above, in order, with a clear pause
 between lines, then `VOICE_FILE=my_voice.wav python3 voice.py` re-times every shot and caption to it
 (re-render afterwards, since shot lengths change). Hindi TTS: `LANG_CODE=hi python3 voice.py`.
 
@@ -51,3 +51,11 @@ The character mesh/morphs are read from `../sneeze_short/data` (override with `C
 Sources: Forster et al., *Control of breathing during exercise*, Compr Physiol 2012; Robergs et al.,
 *Biochemistry of exercise-induced metabolic acidosis*, Am J Physiol 2004; Brooks, *The science and
 translation of lactate shuttle theory*, Cell Metab 2018; Dempsey et al., on lung adaptations to training.
+
+## 3D upgrades (v2)
+
+Finger bones + fists, anatomical lung meshes (apex taper, flat medial face, diaphragm hollow, cardiac
+notch) with recursive glowing bronchial trees, tapered heart, x-ray spine, fibre-striped muscles and
+diaphragm, fenced track with floodlight poles, physical sky. `plates/` holds two of the user's images
+(cell interior, alveoli), blurred, used only as out-of-focus backdrops behind the 3D mitochondria and
+alveoli close-ups. Rendered at 1280×720 (`--scale 0.6667`), upscaled to 1920×1080.

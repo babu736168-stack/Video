@@ -119,8 +119,8 @@ def ball(name, r, mat, seg=16):
 GM = {}
 
 
-def gm(name, color, strength, alpha):
-    GM[name] = (color, strength); return C.glow_material(name, color, strength, alpha)
+def gm(name, color, strength, alpha, texture=None):
+    GM[name] = (color, strength); return C.glow_material(name, color, strength, alpha, texture)
 
 
 def set_val(mat_name, node, v):
@@ -132,14 +132,16 @@ def set_col(mat_name, col):
 
 
 g_air = gm("g_air", GREEN, 2.5, 0.7)
-g_lung = gm("g_lung", PINK, 1.6, 0.55)
-g_heart = gm("g_heart", RED, 4.0, 0.9)
-g_dia = gm("g_dia", (1.0, 0.55, 0.2), 2.5, 0.75)
+g_lung = gm("g_lung", PINK, 1.5, 0.5, ("cells", 9.0))
+g_bron = gm("g_bron", (1.0, 0.55, 0.4), 5.0, 0.9)
+g_spine = gm("g_spine", (0.9, 0.95, 1.0), 1.4, 0.55)
+g_heart = gm("g_heart", RED, 4.0, 0.9, ("stripes", 5.0))
+g_dia = gm("g_dia", (1.0, 0.3, 0.12), 2.2, 0.7, ("stripes", 6.0))
 g_rib = gm("g_rib", (0.85, 0.95, 1.0), 1.2, 0.35)
 g_brain = gm("g_brain", PINK, 2.2, 0.8)
 g_nerve = gm("g_nerve", (1.0, 0.9, 0.4), 3.0, 0.8)
 g_sig = gm("g_sig", (1.0, 1.0, 0.6), 25.0, 1.0)
-g_mus = gm("g_mus", RED, 2.5, 0.75)
+g_mus = gm("g_mus", RED, 2.5, 0.75, ("stripes", 7.0))
 g_atp = gm("g_atp", (1.0, 0.85, 0.2), 6.0, 1.0)
 g_o2 = gm("g_o2", BLUE, 3.0, 1.0)
 g_co2 = gm("g_co2", GREY, 1.6, 0.95)
@@ -155,9 +157,10 @@ g_breath = gm("g_breath", (0.85, 0.95, 1.0), 0.5, 0.12)
 ORG = {}
 
 
-def organ(o, bone, loc=(0, 0, 0), scale=(1, 1, 1)):
+def organ(o, bone, loc=(0, 0, 0), scale=(1, 1, 1), rot=None):
     o.location = (0, 0, 0); o.scale = (1, 1, 1)
-    ORG[o.name] = dict(o=o, bone=bone, loc=Vector(loc), scale=Vector(scale), k=Vector((1, 1, 1)), off=Vector())
+    ORG[o.name] = dict(o=o, bone=bone, loc=Vector(loc), scale=Vector(scale), k=Vector((1, 1, 1)), off=Vector(),
+                       rot=rot.to_quaternion() if rot is not None else None)
     return o
 
 
@@ -168,11 +171,15 @@ def Wm(bone):
 
 def follow():
     bpy.context.view_layer.update()
+    for b, l in zip(btrees, lungs):
+        b.hide_render = l.hide_render
+    for v in spine_parts:
+        v.hide_render = not XR[0]
     for d in ORG.values():
         if d["o"].hide_render:
             continue
         s = Vector([a * b for a, b in zip(d["scale"], d["k"])])
-        d["o"].matrix_world = Wm(d["bone"]) @ Matrix.LocRotScale(d["loc"] + d["off"], None, s)
+        d["o"].matrix_world = Wm(d["bone"]) @ Matrix.LocRotScale(d["loc"] + d["off"], d["rot"], s)
 
 
 TORSO = SP[0]  # torso organs ride on the lowest spine bone (the lean pivot)
@@ -192,9 +199,93 @@ for sx in (1, -1):
                                 Vector((sx * 0.055, CHEST.y - 0.03, NECK.z - 0.16))], 0.005, g_air)
     bronchi.append(organ(o, TORSO))
 LUNG_C = [Vector((sx * 0.07, CHEST.y - 0.03, NECK.z - 0.15)) for sx in (1, -1)]
-lungs = [organ(ball(f"lung{i}", 1.0, g_lung, 32), TORSO, c, (0.055, 0.05, 0.095)) for i, c in enumerate(LUNG_C)]
+from mathutils import Euler
+
+
+def shaped(name, mat, fn, seg=48):
+    """UV sphere whose unit-sphere vertices are reshaped by fn(Vector) -> Vector."""
+    o = ball(name, 1.0, mat, seg)
+    for v in o.data.vertices:
+        v.co = fn(v.co.copy())
+    o.data.update(); return o
+
+
+def lung_shape(side):
+    """Anatomical-ish lung: narrow apex, broad base hollowed by the diaphragm, flat medial face,
+    cardiac notch on the heart side. side=+1/-1 is the lung's x side."""
+    def f(c):
+        x, y, z = c
+        r = 0.62 + 0.38 * math.sqrt(max(0.0, (1 - z) / 2)) ** 0.8          # apex taper
+        x, y = x * r, y * r
+        if x * side < 0:
+            x *= 0.6                                                          # flat medial face
+        if z < -0.35:
+            z += 0.55 * max(0.0, 1 - (x * x + y * y) * 1.6) * (-0.35 - z) / 0.65   # diaphragm hollow
+        if side == LS and x * side < 0.1 and y < 0.2 and z < 0.1:
+            x += side * 0.35 * math.exp(-((z + 0.45) / 0.35) ** 2)          # cardiac notch
+        return Vector((x, y, z))
+    return f
+
+
+def heart_shape(c):
+    x, y, z = c
+    t = 1 - 0.55 * max(0.0, -z) ** 1.1                                        # taper to the apex
+    x, y = x * t, y * t * 0.9
+    x += 0.08 * math.sin(3 * math.atan2(y, x)) * (1 - abs(z))                # lumpy chambers
+    return Vector((x, y, z))
+
+
+lungs = [organ(shaped(f"lung{i}", g_lung, lung_shape(1 if i == 0 else -1)), TORSO, c, (0.072, 0.058, 0.11))
+         for i, c in enumerate(LUNG_C)]
 HEART = Vector((LS * 0.022, CHEST.y - 0.05, NECK.z - 0.19))
-heart = organ(ball("heart", 1.0, g_heart, 32), TORSO, HEART, (0.034, 0.03, 0.04))
+heart = organ(shaped("heart", g_heart, heart_shape), TORSO, HEART, (0.034, 0.03, 0.045),
+              Euler((math.radians(-25), math.radians(-30 * LS), 0)))
+# bronchial trees: recursive branches inside each lung (one curve object per lung)
+BR = np.random.default_rng(8)
+
+
+def bronchial_tree(name, root, d, lc, ls):
+    cu = bpy.data.curves.new(name, "CURVE"); cu.dimensions = "3D"; cu.bevel_depth = 1.0; cu.bevel_resolution = 2
+
+    def inside(p):
+        q = p - lc
+        return (q.x / ls[0]) ** 2 + (q.y / ls[1]) ** 2 + (q.z / ls[2]) ** 2 < 0.8
+
+    def grow(p, d, length, r, depth):
+        e = p + d * length
+        if not inside(e):
+            e = p + d * length * 0.5
+            if not inside(e):
+                return
+        sp = cu.splines.new("POLY"); sp.points.add(1)
+        sp.points[0].co = (*p, 1); sp.points[1].co = (*e, 1)
+        sp.points[0].radius = r; sp.points[1].radius = r * 0.75
+        if depth == 0:
+            return
+        for sgn in (1, -1):
+            ax = d.cross(Vector(BR.normal(0, 1, 3))).normalized()
+            nd = (Matrix.Rotation(math.radians(sgn * BR.uniform(25, 45)), 3, ax) @ d).normalized()
+            grow(e, nd, length * BR.uniform(0.62, 0.8), r * 0.72, depth - 1)
+    grow(root, d, 0.035, 0.0045, 5)
+    o = bpy.data.objects.new(name, cu); bpy.context.collection.objects.link(o)
+    return prop(o, g_bron)
+
+
+btrees = []
+for i, sx in enumerate((1, -1)):
+    root = Vector((sx * 0.055, CHEST.y - 0.03, NECK.z - 0.16))
+    btrees.append(organ(bronchial_tree(f"btree{i}", root, Vector((sx * 0.5, 0.0, -0.85)).normalized(), LUNG_C[i],
+                                       (0.072, 0.058, 0.11)), TORSO))
+# x-ray spine: a column of vertebrae from the pelvis to the skull
+SPN = [J["pelvis"] + Vector((0, 0.045, -0.02))] + [J[k] + Vector((0, 0.03, 0)) for k in SP] + [NECK + Vector((0, 0.02, 0.04))]
+SPN = catmull(SPN, 60)
+vert_mesh = None
+spine_parts = []
+for i in range(22):
+    p = path_at(SPN, i / 21)
+    o = ball(f"vert{i}", 1.0, g_spine, 12)
+    w = 0.016 - 0.005 * i / 21
+    spine_parts.append(organ(o, TORSO, p, (w, w * 0.8, 0.0075)))
 # diaphragm: a dome under the lungs
 bpy.ops.mesh.primitive_uv_sphere_add(radius=1.0, segments=40, ring_count=20)
 dome = bpy.context.object; dome.name = "dome"
@@ -203,7 +294,7 @@ bm = bmesh.new(); bm.from_mesh(dome.data)
 bmesh.ops.delete(bm, geom=[v for v in bm.verts if v.co.z < -0.05], context="VERTS"); bm.to_mesh(dome.data); bm.free()
 bpy.ops.object.shade_smooth()
 DOME = Vector((0, CHEST.y - 0.02, NECK.z - 0.255))
-organ(prop(dome, g_dia), TORSO, DOME, (0.13, 0.085, 0.07))
+organ(prop(dome, g_dia), TORSO, DOME, (0.14, 0.09, 0.1))
 ribs = []
 for i in range(7):
     bpy.ops.mesh.primitive_torus_add(major_radius=1.0, minor_radius=0.04, major_segments=48, minor_segments=6)
@@ -290,8 +381,26 @@ def banded(name, c1, c2, scale, strength, alpha):
     return m
 
 
+UPL = os.environ.get("UPLOADS", "/root/.claude/uploads/32770705-7d9b-5f9f-9b3a-9f911fd69f71/")
+PLATES = os.path.join(HERE, "..", "plates")
+
+
+def image_plane(name, img, center, width, aspect, strength=0.8):
+    """Out-of-focus background plate made from one of the user's images (emissive, faces -Y)."""
+    bpy.ops.mesh.primitive_plane_add(size=1, location=center, rotation=(math.pi / 2, 0, 0))
+    o = bpy.context.object; o.name = name; o.scale = (width, width / aspect, 1)
+    m, nt, out = C._nodes(name + "_m")
+    tx = nt.nodes.new("ShaderNodeTexImage"); tx.image = bpy.data.images.load(img); tx.extension = "EXTEND"
+    em = nt.nodes.new("ShaderNodeEmission"); em.inputs["Strength"].default_value = strength
+    nt.links.new(tx.outputs["Color"], em.inputs["Color"]); nt.links.new(em.outputs[0], out.inputs["Surface"])
+    o.data.materials.append(m); o.hide_render = True; props.append(o)
+    return o
+
+
 MC = Vector((80, 0, 6))  # mitochondria set
 micro_m = [backdrop("bd_m", MC, 6, (0.25, 0.02, 0.04), (0.02, 0.0, 0.01))]
+if os.path.exists(os.path.join(PLATES, "cell.png")):
+    micro_m.append(image_plane("plate_m", os.path.join(PLATES, "cell.png"), MC + Vector((0, 2.6, 0)), 10, 16 / 9, 0.55))
 fib_mat = banded("fiber", (0.6, 0.06, 0.08), (0.25, 0.01, 0.03), 4.0, 0.5, 0.8)
 for i in range(6):
     bpy.ops.mesh.primitive_cylinder_add(radius=0.28, depth=12, location=MC + Vector((0, 1.2 + (i % 2) * 0.5, -1.4 + i * 0.55)),
@@ -309,6 +418,8 @@ atpm = [ball(f"atpm{i}", 0.025, g_atp, 8) for i in range(50)]
 
 AC = Vector((80, 30, 6))  # alveoli set
 micro_a = [backdrop("bd_a", AC, 6, (0.18, 0.05, 0.12), (0.01, 0.0, 0.02))]
+if os.path.exists(os.path.join(PLATES, "alveoli.png")):
+    micro_a.append(image_plane("plate_a", os.path.join(PLATES, "alveoli.png"), AC + Vector((0, 2.6, 0)), 9, 16 / 9, 0.5))
 alv_mat = C.glow_material("alv", (1.0, 0.45, 0.55), 1.3, 0.45)
 ALV = []
 for i in range(9):
@@ -378,7 +489,11 @@ MATS = [m for m in bpy.data.materials]
 REST_X = {b.name: (b.matrix_local.to_3x3() @ Vector((1, 0, 0))) for b in rig.data.bones}
 
 
+XR = [False]
+
+
 def xray(v):
+    XR[0] = v > 0.3
     for mt in MATS:
         n = mt.node_tree.nodes.get("xray") if mt.node_tree else None
         if n:
@@ -389,9 +504,24 @@ def xray(v):
         ch["objs"][k].hide_render = v > 0.3
 
 
+FIST = float(os.environ.get("FIST", "-60"))
+THUMB = float(os.environ.get("THUMB", "1.0"))   # finger curl per joint (deg); thumb curls less
+
+
+def fist(deg):
+    for s in ("l", "r"):
+        for f in range(1, 6):
+            for k in range(1, 4):
+                pb = rig.pose.bones.get(f"{s}_f{f}{k}")
+                if pb:
+                    a = deg * (THUMB if f == 1 else 1.0) * (0.8 if k == 1 else 1.0)
+                    pb.rotation_euler = (math.radians(a), 0, 0)
+
+
 def pose(rot):
     for pb in rig.pose.bones:
         pb.rotation_mode = "XYZ"; pb.rotation_euler = (0, 0, 0); pb.location = (0, 0, 0)
+    fist(FIST)
     for k, (x, y, z) in rot.items():
         rig.pose.bones[k].rotation_euler = (math.radians(x), math.radians(y), math.radians(z))
 
@@ -674,7 +804,7 @@ def s_alveoli(u, t, T):
         o.location = src.lerp(AC + Vector((0, 0.15, 0.6)), ez(min(1, s * 2))).lerp(tgt, ez(max(0, s * 2 - 1)))
     for i, (p, r) in enumerate(ALV):  # gentle inflate / deflate
         f = 1 + 0.06 * math.sin(2 * math.pi * 0.8 * t + i * 0.3)
-        micro_a[1 + i].scale = (f,) * 3
+        bpy.data.objects[f"alv{i}"].scale = (f,) * 3
     c = AC + Vector((0, 0, 0.25))
     look(L(c + Vector((1.4, -5.6, 1.4)), c + Vector((0.5, -4.2, 0.6)), ez(u)), c, 30, 3.2, roll=L(-4, 2, u), shake=0.01, t=t)
 
@@ -834,12 +964,19 @@ def s_trained(u, t, T):
     look(L(c + Vector((0.4, -1.6, 0.1)), c + Vector((1.2, -4.0, 0.6)), ez(u)), c, 38, 4.0, roll=L(2, 0, u), shake=0.003, t=t)
 
 
-SHOTS = dict(intro=s_intro, muscles=s_muscles, mito=s_mito, brain=s_brain, diaphragm=s_diaphragm, alveoli=s_alveoli,
+def s_handtest(u, t, T):
+    run(T, "jog")
+    bpy.context.view_layer.update()
+    h = rig.matrix_world @ rig.pose.bones["l_hand"].tail
+    look(h + Vector((0.25, -0.45, 0.1)), h, 50, 4.0)
+
+
+SHOTS = dict(handtest=s_handtest, intro=s_intro, muscles=s_muscles, mito=s_mito, brain=s_brain, diaphragm=s_diaphragm, alveoli=s_alveoli,
              heart=s_heart, sprint=s_sprint, buffer=s_buffer, lactate=s_lactate, after=s_after, trained=s_trained)
 TL_SHOT = {s["id"]: s for s in TL["shots"]}
 
 # ----------------------------------------------------------------------------- render
-for shot in TL["shots"]:
+for shot in TL["shots"] + ([dict(id="handtest", start=3.0, end=4.0)] if "handtest" in ONLY else []):
     sid = shot["id"]
     if ONLY and sid not in ONLY:
         continue

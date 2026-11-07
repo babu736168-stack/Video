@@ -1,5 +1,5 @@
 {
- "total": 50.05566666666667,
+ "total": 34.893875,
  "shots": [
   {
    "id": "intro",
@@ -28,358 +28,238 @@
   },
   {
    "id": "muscles",
-   "text": "Every stride makes your leg muscles burn through ATP, their energy, much faster.",
+   "text": "Every stride, your muscles burn through their energy, called ATP.",
    "voice_start": 1.8086666666666664,
-   "voice_end": 6.59825,
+   "voice_end": 5.531958333333334,
    "caps": [
     {
-     "text": "Every stride makes",
+     "text": "Every stride,",
      "t0": 1.8086666666666664,
-     "t1": 2.844252252252252
+     "t1": 2.649409946236559
     },
     {
-     "text": "your leg muscles",
-     "t0": 2.844252252252252,
-     "t1": 3.7503896396396397
+     "text": "your muscles burn",
+     "t0": 2.649409946236559,
+     "t1": 3.5502063172043012
     },
     {
-     "text": "burn through ATP,",
-     "t0": 3.7503896396396397,
-     "t1": 4.850699324324324
+     "text": "through their energy,",
+     "t0": 3.5502063172043012,
+     "t1": 4.81132123655914
     },
     {
-     "text": "their energy,",
-     "t0": 4.850699324324324,
-     "t1": 5.756836711711712
-    },
-    {
-     "text": "much faster.",
-     "t0": 5.756836711711712,
-     "t1": 6.59825
+     "text": "called ATP.",
+     "t0": 4.81132123655914,
+     "t1": 5.531958333333334
     }
    ],
    "start": 1.7486666666666664,
-   "end": 6.658250000000001
+   "end": 5.591958333333333
   },
   {
    "id": "mito",
-   "text": "To make more, tiny mitochondria use extra oxygen, and release extra carbon dioxide.",
-   "voice_start": 6.71825,
-   "voice_end": 12.379333333333333,
+   "text": "To make more, mitochondria use oxygen, and release carbon dioxide.",
+   "voice_start": 5.651958333333333,
+   "voice_end": 9.891625,
    "caps": [
     {
      "text": "To make more,",
-     "t0": 6.71825,
-     "t1": 7.674017316017316
+     "t0": 5.651958333333333,
+     "t1": 6.526810185185185
     },
     {
-     "text": "tiny mitochondria use",
-     "t0": 7.674017316017316,
-     "t1": 9.070908008658009
+     "text": "mitochondria use oxygen,",
+     "t0": 6.526810185185185,
+     "t1": 8.141921296296296
     },
     {
-     "text": "extra oxygen,",
-     "t0": 9.070908008658009,
-     "t1": 10.100195887445887
-    },
-    {
-     "text": "and release extra",
-     "t0": 10.100195887445887,
-     "t1": 11.20300432900433
-    },
-    {
-     "text": "carbon dioxide.",
-     "t0": 11.20300432900433,
-     "t1": 12.379333333333333
+     "text": "and release carbon dioxide.",
+     "t0": 8.141921296296296,
+     "t1": 9.891624999999998
     }
    ],
-   "start": 6.658250000000001,
-   "end": 12.439333333333332
+   "start": 5.591958333333333,
+   "end": 9.951624999999998
   },
   {
    "id": "brain",
-   "text": "But your brain doesn't wait for that to build up. It speeds up your breathing from the very first step,",
-   "voice_start": 12.499333333333333,
-   "voice_end": 17.456583333333334,
+   "text": "Your brain doesn't wait. From the very first step, it drives your diaphragm harder,",
+   "voice_start": 10.011624999999999,
+   "voice_end": 14.406291666666664,
    "caps": [
     {
-     "text": "But your brain",
-     "t0": 12.499333333333333,
-     "t1": 13.183091954022988
+     "text": "Your brain doesn't wait.",
+     "t0": 10.011624999999999,
+     "t1": 11.300727222222221
     },
     {
-     "text": "doesn't wait for",
-     "t0": 13.183091954022988,
-     "t1": 13.923830459770114
+     "text": "From the very",
+     "t0": 11.300727222222221,
+     "t1": 11.945278333333333
     },
     {
-     "text": "that to build up.",
-     "t0": 13.923830459770114,
-     "t1": 14.835508620689655
+     "text": "first step,",
+     "t0": 11.945278333333333,
+     "t1": 12.648425
     },
     {
-     "text": "It speeds up",
-     "t0": 14.835508620689655,
-     "t1": 15.405307471264367
+     "text": "it drives your",
+     "t0": 12.648425,
+     "t1": 13.351571666666665
     },
     {
-     "text": "your breathing from",
-     "t0": 15.405307471264367,
-     "t1": 16.373965517241377
-    },
-    {
-     "text": "the very first step,",
-     "t0": 16.373965517241377,
-     "t1": 17.456583333333334
+     "text": "diaphragm harder,",
+     "t0": 13.351571666666665,
+     "t1": 14.406291666666664
     }
    ],
-   "start": 12.439333333333332,
-   "end": 17.516583333333333
+   "start": 9.951624999999998,
+   "end": 14.466291666666665
   },
   {
    "id": "diaphragm",
-   "text": "pulling your diaphragm down harder, for deeper, faster breaths.",
-   "voice_start": 17.576583333333332,
-   "voice_end": 20.92320833333333,
+   "text": "so you breathe deeper and faster: oxygen in, carbon dioxide out.",
+   "voice_start": 14.526291666666665,
+   "voice_end": 18.465666666666664,
    "caps": [
     {
-     "text": "pulling your diaphragm",
-     "t0": 17.576583333333332,
-     "t1": 18.673837431693986
+     "text": "so you breathe",
+     "t0": 14.526291666666665,
+     "t1": 15.355633771929824
     },
     {
-     "text": "down harder,",
-     "t0": 18.673837431693986,
-     "t1": 19.387052595628415
+     "text": "deeper and faster:",
+     "t0": 15.355633771929824,
+     "t1": 16.39231140350877
     },
     {
-     "text": "for deeper,",
-     "t0": 19.387052595628415,
-     "t1": 20.045405054644807
+     "text": "oxygen in,",
+     "t0": 16.39231140350877,
+     "t1": 17.152541666666664
     },
     {
-     "text": "faster breaths.",
-     "t0": 20.045405054644807,
-     "t1": 20.92320833333333
+     "text": "carbon dioxide out.",
+     "t0": 17.152541666666664,
+     "t1": 18.465666666666664
     }
    ],
-   "start": 17.516583333333333,
-   "end": 20.983208333333334
-  },
-  {
-   "id": "alveoli",
-   "text": "In your lungs, oxygen floods into your blood, and carbon dioxide gets breathed out.",
-   "voice_start": 21.043208333333332,
-   "voice_end": 25.966541666666664,
-   "caps": [
-    {
-     "text": "In your lungs,",
-     "t0": 21.043208333333332,
-     "t1": 21.950138157894735
-    },
-    {
-     "text": "oxygen floods into",
-     "t0": 21.950138157894735,
-     "t1": 22.98662938596491
-    },
-    {
-     "text": "your blood,",
-     "t0": 22.98662938596491,
-     "t1": 23.763997807017542
-    },
-    {
-     "text": "and carbon dioxide",
-     "t0": 23.763997807017542,
-     "t1": 24.80048903508772
-    },
-    {
-     "text": "gets breathed out.",
-     "t0": 24.80048903508772,
-     "t1": 25.966541666666664
-    }
-   ],
-   "start": 20.983208333333334,
-   "end": 26.026541666666667
+   "start": 14.466291666666665,
+   "end": 18.525666666666666
   },
   {
    "id": "heart",
-   "text": "Your heart pumps faster to deliver it all.",
-   "voice_start": 26.086541666666665,
-   "voice_end": 28.127166666666664,
+   "text": "Your heart races to deliver it all.",
+   "voice_start": 18.585666666666665,
+   "voice_end": 20.370124999999998,
    "caps": [
     {
-     "text": "Your heart pumps",
-     "t0": 26.086541666666665,
-     "t1": 26.858670045045045
+     "text": "Your heart races",
+     "t0": 18.585666666666665,
+     "t1": 19.391551075268815
     },
     {
-     "text": "faster to deliver",
-     "t0": 26.858670045045045,
-     "t1": 27.68595045045045
-    },
-    {
-     "text": "it all.",
-     "t0": 27.68595045045045,
-     "t1": 28.127166666666664
+     "text": "to deliver it all.",
+     "t0": 19.391551075268815,
+     "t1": 20.370124999999998
     }
    ],
-   "start": 26.026541666666667,
-   "end": 28.187166666666666
-  },
-  {
-   "id": "sprint",
-   "text": "Sprint hard, and acid builds up in your muscles.",
-   "voice_start": 28.247166666666665,
-   "voice_end": 30.64620833333333,
-   "caps": [
-    {
-     "text": "Sprint hard,",
-     "t0": 28.247166666666665,
-     "t1": 28.95597443181818
-    },
-    {
-     "text": "and acid builds",
-     "t0": 28.95597443181818,
-     "t1": 29.664782196969696
-    },
-    {
-     "text": "up in your muscles.",
-     "t0": 29.664782196969696,
-     "t1": 30.64620833333333
-    }
-   ],
-   "start": 28.187166666666666,
-   "end": 30.706208333333333
+   "start": 18.525666666666666,
+   "end": 20.430125
   },
   {
    "id": "buffer",
-   "text": "Your blood buffers it, releasing even more carbon dioxide, so you gasp.",
-   "voice_start": 30.76620833333333,
-   "voice_end": 34.80225,
+   "text": "Sprint hard, and acid builds up. Your blood buffers it, releasing even more carbon dioxide, so you gasp.",
+   "voice_start": 20.490125,
+   "voice_end": 26.798499999999997,
    "caps": [
     {
+     "text": "Sprint hard,",
+     "t0": 20.490125,
+     "t1": 21.335577319587628
+    },
+    {
+     "text": "and acid builds up.",
+     "t0": 21.335577319587628,
+     "t1": 22.50620360824742
+    },
+    {
      "text": "Your blood buffers it,",
-     "t0": 30.76620833333333,
-     "t1": 32.050403409090904
+     "t0": 22.50620360824742,
+     "t1": 23.871934278350516
     },
     {
      "text": "releasing even more",
-     "t0": 32.050403409090904,
-     "t1": 33.0899898989899
+     "t0": 23.871934278350516,
+     "t1": 24.977525773195875
     },
     {
      "text": "carbon dioxide,",
-     "t0": 33.0899898989899,
-     "t1": 34.06842424242424
+     "t0": 24.977525773195875,
+     "t1": 26.0180824742268
     },
     {
      "text": "so you gasp.",
-     "t0": 34.06842424242424,
-     "t1": 34.80225
+     "t0": 26.0180824742268,
+     "t1": 26.798499999999997
     }
    ],
-   "start": 30.706208333333333,
-   "end": 34.862249999999996
+   "start": 20.430125,
+   "end": 26.8585
   },
   {
    "id": "lactate",
-   "text": "And no, lactic acid isn't the villain. Lactate is actually fuel for your heart and muscles.",
-   "voice_start": 34.92225,
-   "voice_end": 40.42341666666667,
+   "text": "And no, lactic acid isn't the villain. Lactate is actually fuel.",
+   "voice_start": 26.918499999999998,
+   "voice_end": 30.820666666666664,
    "caps": [
     {
      "text": "And no,",
-     "t0": 34.92225,
-     "t1": 35.465575102880656
+     "t0": 26.918499999999998,
+     "t1": 27.447607344632765
     },
     {
      "text": "lactic acid isn't",
-     "t0": 35.465575102880656,
-     "t1": 36.41639403292181
+     "t0": 27.447607344632765,
+     "t1": 28.37354519774011
     },
     {
      "text": "the villain.",
-     "t0": 36.41639403292181,
-     "t1": 37.29929732510288
+     "t0": 28.37354519774011,
+     "t1": 29.23334463276836
     },
     {
-     "text": "Lactate is actually",
-     "t0": 37.29929732510288,
-     "t1": 38.453863168724276
-    },
-    {
-     "text": "fuel for your",
-     "t0": 38.453863168724276,
-     "t1": 39.20093518518518
-    },
-    {
-     "text": "heart and muscles.",
-     "t0": 39.20093518518518,
-     "t1": 40.42341666666666
+     "text": "Lactate is actually fuel.",
+     "t0": 29.23334463276836,
+     "t1": 30.820666666666664
     }
    ],
-   "start": 34.862249999999996,
-   "end": 40.48341666666666
-  },
-  {
-   "id": "after",
-   "text": "Even after you stop, you keep panting while your body recovers.",
-   "voice_start": 40.543416666666666,
-   "voice_end": 44.02379166666667,
-   "caps": [
-    {
-     "text": "Even after you stop,",
-     "t0": 40.543416666666666,
-     "t1": 41.703541666666666
-    },
-    {
-     "text": "you keep panting",
-     "t0": 41.703541666666666,
-     "t1": 42.558370614035084
-    },
-    {
-     "text": "while your body recovers.",
-     "t0": 42.558370614035084,
-     "t1": 44.02379166666667
-    }
-   ],
-   "start": 40.48341666666666,
-   "end": 44.08379166666666
+   "start": 26.8585,
+   "end": 30.880666666666666
   },
   {
    "id": "trained",
-   "text": "Train regularly, and your heart and muscles adapt, so the same pace feels easier.",
-   "voice_start": 44.143791666666665,
-   "voice_end": 48.73566666666667,
+   "text": "Train regularly, and the same pace feels easier.",
+   "voice_start": 30.940666666666665,
+   "voice_end": 33.573875,
    "caps": [
     {
      "text": "Train regularly,",
-     "t0": 44.143791666666665,
-     "t1": 45.198681869369366
+     "t0": 30.940666666666665,
+     "t1": 31.935434259259257
     },
     {
-     "text": "and your heart",
-     "t0": 45.198681869369366,
-     "t1": 45.943310247747746
-    },
-    {
-     "text": "and muscles adapt,",
-     "t0": 45.943310247747746,
-     "t1": 47.060252815315316
-    },
-    {
-     "text": "so the same",
-     "t0": 47.060252815315316,
-     "t1": 47.6187240990991
+     "text": "and the same",
+     "t0": 31.935434259259257,
+     "t1": 32.52059166666667
     },
     {
      "text": "pace feels easier.",
-     "t0": 47.6187240990991,
-     "t1": 48.73566666666667
+     "t0": 32.52059166666667,
+     "t1": 33.573875
     }
    ],
-   "start": 44.08379166666666,
-   "end": 50.05566666666667
+   "start": 30.880666666666666,
+   "end": 34.893875
   }
  ]
 }

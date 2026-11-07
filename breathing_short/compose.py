@@ -22,7 +22,7 @@ LAYOUT = dict(CAPSIZE="66" if WIDE else "78", CAPMARGIN="70" if WIDE else "520",
 
 
 def lay(text):
-    for k, v in LAYOUT.items():
+    for k, v in sorted(LAYOUT.items(), key=lambda kv: -len(kv[0])):
         text = text.replace(k, v)
     return text.replace("W_", str(W_)).replace("H_", str(H_))
 
@@ -71,6 +71,7 @@ WrapStyle: 0
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: Cap,Inter Black,CAPSIZE,&H00FFFFFF,&H00FFFFFF,&H00101010,&H90000000,-1,0,0,0,100,100,0,0,1,6,4,2,60,60,CAPMARGIN,1
 Style: Tag,Inter Black,92,&H00FFFFFF,&H00FFFFFF,&H00101010,&H90000000,-1,0,0,0,100,100,0,0,1,6,3,5,60,60,0,1
+Style: Credit,Inter,30,&H00E0E0E0,&H00FFFFFF,&H00101010,&H90000000,0,0,0,0,100,100,0,0,1,2,0,3,40,40,24,1
 Style: Big,Inter Black,BIGSIZE,&H0018D8FF,&H00FFFFFF,&H00101010,&H90000000,-1,0,0,0,100,100,0,0,1,10,8,5,60,60,0,1
 
 [Events]
@@ -86,12 +87,15 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     ev.append(f"Dialogue: 1,{ts(c['t0'])},{ts(c['t1'] + 0.9)},Big,,0,0,0,,"
               r"{\pos(STAMP)\1c&H2020FF&\fscx40\fscy40\frz-8\t(0,140,\fscx105\fscy105)\t(140,240,\fscx90\fscy90)}MYTH!")
     # gas labels in the microscopic shots
-    for sid, a0 in (("mito", 0.1), ("alveoli", 0.1)):
+    for sid, a0 in (("mito", 0.1),):
         sh = SHOTS[sid]; t0 = sh["start"] + a0 * (sh["end"] - sh["start"])
         ev.append(f"Dialogue: 1,{ts(t0)},{ts(sh['end'] - 0.05)},Tag,,0,0,0,,"
                   r"{\pos(O2POS)\1c&HFF9A40&\fad(200,150)}O₂ in")
         ev.append(f"Dialogue: 1,{ts(t0 + 0.8)},{ts(sh['end'] - 0.05)},Tag,,0,0,0,,"
                   r"{\pos(CO2POS)\1c&HE0C8D0&\fad(200,150)}CO₂ out")
+    if os.path.exists(os.path.join(HERE, "data", "anatomy.blend")):
+        tl = TL["total"]
+        ev.append(f"Dialogue: 2,{ts(tl - 2.6)},{ts(tl)},Credit,,0,0,0,,{{\\fad(300,0)}}Anatomy: Z-Anatomy / BodyParts3D (DBCLS), CC BY-SA 4.0")
     sh = SHOTS["muscles"]; t0 = sh["start"] + 0.3 * (sh["end"] - sh["start"])
     ev.append(f"Dialogue: 1,{ts(t0)},{ts(sh['end'] - 0.05)},Tag,,0,0,0,,"
               r"{\pos(ATPPOS)\1c&H30D8FF&\fad(200,150)}ATP")
@@ -209,12 +213,12 @@ def audio(total):
     # footsteps: one thump per foot contact, matching the rendered gait (blender/shots.py GAITS)
     step = np.zeros(int(0.12 * SR)); tt = np.arange(len(step)) / SR
     step = (np.sin(2 * np.pi * 70 * tt) * np.exp(-tt * 40) + bandnoise(0.12, 1500, 6000) * 0.25 * np.exp(-tt * 60))
-    gait = dict(intro=0.72, muscles=0.72, brain=0.72, diaphragm=0.72, heart=0.72, sprint=0.56, buffer=0.56,
-                lactate=0.72, after=0.72, trained=0.76)
+    gait = dict(intro=0.72, muscles=0.72, brain=0.72, diaphragm=0.72, heart=0.72, buffer=0.56, lactate=0.72, trained=0.76)
     for k, P in gait.items():
+        if k not in S:
+            continue
         a_, b_ = S[k]["start"], S[k]["end"]
         if k == "brain": a_ = sh("brain", 0.45)
-        if k == "after": b_ = sh("after", 0.1)
         j = int(np.ceil(a_ / (P / 2)))
         while j * P / 2 < b_:
             place(sfx, step, j * P / 2, 0.55 if P < 0.6 else 0.4); j += 1
@@ -223,19 +227,18 @@ def audio(total):
     # breaths (filtered noise swells)
     def breath(d, lo, hi, g):
         x = bandnoise(d, lo, hi); return x * np.sin(np.linspace(0, np.pi, len(x))) ** 2 * g
-    for k, rate, g in (("diaphragm", 0.8, 0.5), ("sprint", 1.1, 0.35), ("buffer", 1.1, 0.45), ("after", 0.75, 0.6)):
+    for k, rate, g in (("diaphragm", 0.8, 0.5), ("buffer", 1.1, 0.45)):
         t_ = S[k]["start"]
         while t_ < S[k]["end"] - 0.3:
             place(sfx, breath(0.45 / rate, 400, 2500, g), t_); place(sfx, breath(0.5 / rate, 300, 1800, g * 0.8), t_ + 0.5 / rate)
             t_ += 1 / rate
     place(sfx, heartbeat(S["heart"]["end"] - S["heart"]["start"], 160), S["heart"]["start"], 0.9)
     place(sfx, heartbeat(S["lactate"]["end"] - S["lactate"]["start"], 150), S["lactate"]["start"], 0.4)
-    place(sfx, riser(S["sprint"]["end"] - S["sprint"]["start"]), S["sprint"]["start"], 0.5)
-    for i in range(10):  # bubbles (CO2) in the buffer shot
-        place(sfx, pop() * 0.5, sh("buffer", 0.3 + 0.05 * i), 0.25)
+    place(sfx, riser(0.32 * (S["buffer"]["end"] - S["buffer"]["start"])), S["buffer"]["start"], 0.5)
+    for i in range(10):  # CO2 bubbles in the buffer shot
+        place(sfx, pop() * 0.5, sh("buffer", 0.52 + 0.04 * i), 0.25)
     place(sfx, pop(), sh("lactate", 0.1), 0.7)  # stamp
     place(sfx, whoosh(0.7), sh("mito", 0.05), 0.4)
-    place(sfx, whoosh(0.7), sh("alveoli", 0.05), 0.4)
     mus = music(total)
     # duck music under the voice
     from scipy.ndimage import uniform_filter1d

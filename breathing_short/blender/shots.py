@@ -489,7 +489,7 @@ cam.data.sensor_fit = "VERTICAL"; cam.data.sensor_height = 24.0
 cam.data.dof.use_dof = True; cam.data.clip_end = 400
 
 
-SHOT_LENS = dict(intro=0.85, muscles=0.8, mito=1.25, brain=0.85, alveoli=1.8, buffer=0.85, trained=1.15) if WIDE else {}
+SHOT_LENS = {} if os.environ.get("CAMS", "v3") == "v3" else (dict(intro=0.85, muscles=0.8, mito=1.25, brain=0.85, alveoli=1.8, buffer=0.85, trained=1.15) if WIDE else {})
 CUR = None
 
 
@@ -930,7 +930,9 @@ def s_buffer(u, t, T):
 
 def s_lactate(u, t, T):
     g = GAITS["jog"]; run(T, "jog", jaw=12); scroll(T * gait_speed(g))
-    xray(0.75 * win(u, 0.15, 0.35)); show(heart, aorta, vena, *legmus, *[o for o, _ in legart.values()])
+    xr_ = 0.75 * win(u, 0.15, 0.35); xray(xr_)
+    if xr_ > 0.25:
+        show(heart, aorta, vena, *legmus, *[o for o, _ in legart.values()])
     set_val("g_mus", "strength", 2.0)
     hb = heartbeat(T, 150); ORG[heart.name]["k"] = Vector((1 + 0.15 * hb,) * 3)
     gl = win(u, 0.5, 0.9)
@@ -938,7 +940,7 @@ def s_lactate(u, t, T):
     follow()
     ven = [wpos(TORSO, p) for p in VEN]
     for i, o in enumerate(lac):  # lactate leaves the muscles and is carried up to the heart as fuel
-        if u < 0.3:
+        if u < 0.35:
             continue
         s = ((u - 0.3) * 1.5 - i * 0.025)
         if s < 0 or s > 1:
@@ -1008,9 +1010,88 @@ def s_handtest(u, t, T):
     look(h + Vector((0.25, -0.45, 0.1)), h, 50, 4.0)
 
 
+# ============================================================================ v3: multi-angle shots
+def orbit(c, dist, az, el):
+    """Camera position around c: az in degrees (0 = runner's left side +X, -90 = in front), el above the horizon."""
+    a, e = math.radians(az), math.radians(el)
+    return Vector(c) + Vector((math.cos(e) * math.cos(a), math.cos(e) * math.sin(a), math.sin(e))) * dist
+
+
+def v_intro(u, t, T):
+    g = GAITS["jog"]; run(T, "jog", jaw=10 * win(u, 0.3, 0.8) + 3, breath_rate=1.6); scroll(T * gait_speed(g))
+    c = Vector((0, 0, HIPZ + 0.4)); e = ez(u)
+    look(orbit(c, L(3.4, 1.9, e), L(-100, -45, e), L(-2, 8, e)), c + Vector((0, 0, 0.2 * e)), L(30, 42, e), 2.8,
+         roll=L(-4, 2, e), shake=0.006, t=t)
+
+
+def v_muscles(u, t, T):
+    s_muscles(u, t, T)   # pose, x-ray legs, ATP sparks
+    c = Vector((0, 0, HIPZ - 0.3)); e = ez(u)
+    look(orbit(c, L(2.0, 1.45, e), L(-25, 40, e), L(-6, 10, e)), c, 30, 3.2, roll=L(-3, 3, e), shake=0.004, t=t)
+
+
+def v_mito(u, t, T):
+    s_mito(u, t, T)
+    c = MC + Vector((0, 0.4, 0.1)); e = ez(u)
+    look(orbit(c, L(4.6, 2.8, e), L(-110, -70, e), L(18, 4, e)), c, 34, 2.8, roll=L(5, -3, e), shake=0.01, t=t)
+
+
+def v_brain(u, t, T):
+    s_brain(u, t, T)
+    e = ez(u)
+    tgt = HEADC.lerp(Vector((0, CHEST.y - 0.03, NECK.z - 0.18)), ez((u - 0.25) / 0.75))
+    look(orbit(tgt, L(0.95, 1.5, e), L(-95, -55, e), L(4, 38, e)), tgt, 36, 4.0, roll=L(0, 6, e), shake=0.003, t=t)
+
+
+def v_diaphragm(u, t, T):
+    s_diaphragm(u, t, T)
+    c = Vector((0, CHEST.y - 0.04, NECK.z - 0.19)); e = ez(u)
+    look(orbit(c, L(1.15, 0.95, e), L(-140, -40, e), L(10, 4, e)), c, 32, 5.6, shake=0.003, t=t)
+
+
+def v_heart(u, t, T):
+    s_heart(u, t, T)
+    c = HEART + Vector((0, 0, 0.01)); e = ez(u)
+    look(orbit(c, L(1.0, 0.42, e), L(-125, -105, e), L(12, 6, e)), c, 36, 4.0, roll=L(4, -2, e), shake=0.003, t=t)
+
+
+def v_buffer(u, t, T):
+    if u < 0.32:   # the sprint, seen from a low front angle
+        k = u / 0.32
+        g = GAITS["sprint"]; run(T, "sprint", jaw=14, breath_rate=2.2); scroll(T * gait_speed(g))
+        set_val("skin", "flush", 0.3 * k)
+        c = Vector((0, 0, HIPZ + 0.25))
+        look(orbit(c, L(3.2, 2.4, ez(k)), L(-75, -60, ez(k)), L(-14, -10, ez(k))), c + Vector((0, 0, 0.1)), 24, 2.8,
+             roll=L(6, -4, k), shake=0.012, t=t)
+        return
+    v = (u - 0.32) / 0.68
+    s_buffer(v, t, T)   # acid -> bicarbonate -> CO2 bubbles -> lungs -> mouth
+    c = Vector((0, 0, HIPZ + 0.05)); e = ez(v)
+    look(orbit(c, L(2.1, 1.7, e), L(-30, 15, e), L(4, 10, e)), c + Vector((0, 0, 0.1 + 0.25 * e)), 30, 4.0,
+         roll=-3, shake=0.009, t=t)
+
+
+def v_lactate(u, t, T):
+    s_lactate(u, t, T)
+    c = Vector((0, CHEST.y - 0.03, HIPZ + 0.05)); e = ez(u)
+    look(orbit(c, L(2.5, 1.8, e), L(70, 25, e), L(38, 22, e)), c + Vector((0, 0, 0.1)), 32, 4.0, roll=L(-4, 2, e), shake=0.004, t=t)
+
+
+def v_trained(u, t, T):
+    s_trained(u, t, T)
+    c = Vector((0, 0, HIPZ + 0.35)); e = ez(u)
+    look(orbit(c, L(2.0, 7.0, e), L(-60, -100, e), L(6, 32, e)), c, L(34, 30, e), 4.0, roll=L(3, 0, e), shake=0.003, t=t)
+
+
+V3 = dict(intro=v_intro, muscles=v_muscles, mito=v_mito, brain=v_brain, diaphragm=v_diaphragm, heart=v_heart,
+          buffer=v_buffer, lactate=v_lactate, trained=v_trained)
+
+
 SHOTS = dict(handtest=s_handtest, intro=s_intro, muscles=s_muscles, mito=s_mito, brain=s_brain, diaphragm=s_diaphragm, alveoli=s_alveoli,
              heart=s_heart, sprint=s_sprint, buffer=s_buffer, lactate=s_lactate, after=s_after, trained=s_trained)
 TL_SHOT = {s["id"]: s for s in TL["shots"]}
+if os.environ.get("CAMS", "v3") == "v3":
+    SHOTS.update(V3)
 
 # ----------------------------------------------------------------------------- render
 for shot in TL["shots"] + ([dict(id="handtest", start=3.0, end=4.0)] if "handtest" in ONLY else []):

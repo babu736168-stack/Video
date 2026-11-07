@@ -22,17 +22,14 @@ LEAD, TAIL = 0.15, 1.2
 # (shot id, narration line) — one 3D shot per line
 LINES = [
     ("intro",     "Why do you breathe faster when you run?"),
-    ("muscles",   "Every stride makes your leg muscles burn through ATP, their energy, much faster."),
-    ("mito",      "To make more, tiny mitochondria use extra oxygen, and release extra carbon dioxide."),
-    ("brain",     "But your brain doesn't wait for that to build up. It speeds up your breathing from the very first step,"),
-    ("diaphragm", "pulling your diaphragm down harder, for deeper, faster breaths."),
-    ("alveoli",   "In your lungs, oxygen floods into your blood, and carbon dioxide gets breathed out."),
-    ("heart",     "Your heart pumps faster to deliver it all."),
-    ("sprint",    "Sprint hard, and acid builds up in your muscles."),
-    ("buffer",    "Your blood buffers it, releasing even more carbon dioxide, so you gasp."),
-    ("lactate",   "And no, lactic acid isn't the villain. Lactate is actually fuel for your heart and muscles."),
-    ("after",     "Even after you stop, you keep panting while your body recovers."),
-    ("trained",   "Train regularly, and your heart and muscles adapt, so the same pace feels easier."),
+    ("muscles",   "Every stride, your muscles burn through their energy, called ATP."),
+    ("mito",      "To make more, mitochondria use oxygen, and release carbon dioxide."),
+    ("brain",     "Your brain doesn't wait. From the very first step, it drives your diaphragm harder,"),
+    ("diaphragm", "so you breathe deeper and faster: oxygen in, carbon dioxide out."),
+    ("heart",     "Your heart races to deliver it all."),
+    ("buffer",    "Sprint hard, and acid builds up. Your blood buffers it, releasing even more carbon dioxide, so you gasp."),
+    ("lactate",   "And no, lactic acid isn't the villain. Lactate is actually fuel."),
+    ("trained",   "Train regularly, and the same pace feels easier."),
 ]
 # Hindi version: LANG_CODE=hi python3 voice.py (voice hm_omega, speed 1.25).
 LINES_HI = [

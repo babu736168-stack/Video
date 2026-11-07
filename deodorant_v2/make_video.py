@@ -60,6 +60,37 @@ LINES = [
     ("is this smell really worth it?", "Is this smell REALLY WORTH IT?"),
     ("Would you switch to a roll-on? Tell me in the comments.", "Would you switch to a ROLL-ON? / Tell me in the COMMENTS."),
 ]
+# Hindi narration (Devanagari, for AI Awaaz) + Hinglish captions — same 19 shots, same facts
+LINES_HI = [
+    ("क्या आप रोज़ सुबह डिओडरेंट लगाते हैं?", "Kya aap roz subah / DEODORANT lagate hain?"),
+    ("लेकिन क्या आपको पता है, इसके अंदर असल में क्या है?", "Lekin kya aapko pata hai, / iske ANDAR asal mein kya hai?"),
+    ("क्या आप पक्का कह सकते हैं, कि हर स्प्रे के साथ आप अस्थमा और एलर्जी को न्योता नहीं दे रहे?",
+     "Kya aap pakka keh sakte hain, / ki har spray ke saath aap / ASTHMA aur ALLERGY ko nyota nahi de rahe?"),
+    ("क्योंकि ऑस्ट्रेलिया में, कई स्कूलों ने इन स्प्रे पर पहले ही बैन लगा दिया है।",
+     "Kyunki AUSTRALIA mein, / kai schools ne in spray par / pehle hi BAN laga diya hai."),
+    ("और ये तो सबसे डरावनी बात भी नहीं है।", "Aur ye toh / sabse DARAWNI baat bhi nahi hai."),
+    ("दो हज़ार इक्कीस में, दुनिया की सबसे बड़ी कंपनियों में से एक, प्रॉक्टर एंड गैंबल ने, अपने ही कुछ स्प्रे बाज़ार से वापस मँगवा लिए।",
+     "2021 mein, duniya ki sabse BADI companiyon mein se ek, / PROCTER & GAMBLE ne, / apne hi kuch spray BAZAAR SE WAPAS mangwa liye."),
+    ("वजह? लैब टेस्ट में मिला बेंज़ीन...", "Wajah? / Lab test mein mila BENZENE..."),
+    ("एक ऐसा केमिकल, जो कैंसर पैदा कर सकता है।", "Ek aisa chemical, / jo CANCER paida kar sakta hai."),
+    ("मात्रा बहुत कम थी। लेकिन होनी चाहिए थी, ज़ीरो।", "Matra bahut KAM thi. / Lekin honi chahiye thi, ZERO."),
+    ("अब ज़रा कैन के अंदर देखिए।", "Ab zara can ke ANDAR dekhiye."),
+    ("इसमें भरी है ब्यूटेन गैस... वही गैस, जो लाइटर में होती है।", "Ismein bhari hai BUTANE gas... / wahi gas, jo LIGHTER mein hoti hai."),
+    ("अगर इसे सूँघा जाए, तो ये दिल की धड़कन रोक सकती है।", "Agar ise soongha jaaye, / toh ye DIL KI DHADKAN rok sakti hai."),
+    ("ब्रिटेन में, डिओडरेंट सूँघने से, ग्यारह मौतें जुड़ी पाई गईं।", "UK mein, deodorant soonghne se, / 11 MAUTEIN judi paayi gayi."),
+    ("और लेबल पर लिखा वो एक शब्द... फ्रेगरेंस?", "Aur label par likha woh ek shabd... / FRAGRANCE?"),
+    ("कंपनियों को अक्सर ये बताना ही नहीं पड़ता, कि इसके अंदर क्या है। ये एक ट्रेड सीक्रेट है।",
+     "Companiyon ko aksar ye batana hi nahi padta, / ki iske andar kya hai. / Ye ek TRADE SECRET hai."),
+    ("डेनमार्क की एक स्टडी में, लगभग आधे लोगों ने, यानी बयालीस प्रतिशत ने कहा, कि खुशबू से उनकी आँखों या साँस की नली में जलन हुई।",
+     "Denmark ki ek study mein, lagbhag AADHE logon ne, / yaani 42% ne kaha, / ki khushboo se unki AANKHON ya SAANS ki nali mein jalan hui."),
+    ("तो अगली बार जब आप वो बटन दबाएँ... खुद से पूछिए:", "Toh agli baar jab aap woh button dabayein... / khud se poochhiye:"),
+    ("क्या ये खुशबू, सच में इसके लायक है?", "Kya ye khushboo, / sach mein iske LAAYAK hai?"),
+    ("क्या आप रोल-ऑन पर स्विच करेंगे? कमेंट में ज़रूर बताइए।", "Kya aap ROLL-ON par switch karenge? / COMMENT mein zaroor bataiye."),
+]
+VIDEO_LANG = os.environ.get("VIDEO_LANG", "en")
+if VIDEO_LANG == "hi":
+    LINES = LINES_HI
+    E.LANG, E.VOICE = "hi", os.environ.get("VOICE", "hm_omega")  # reference voice for DTW alignment / placeholder
 E.SEGMENTS = [dict(scene=f"{i + 1:02d}", gap=(2.2 if i == len(LINES) - 1 else 0.25), hi=hi, cap=[cap])
               for i, (hi, cap) in enumerate(LINES)]
 

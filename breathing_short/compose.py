@@ -12,7 +12,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "out")
 WORK = os.path.join(OUT, "work"); os.makedirs(WORK, exist_ok=True)
 TL = json.load(open(os.path.join(OUT, "timeline.json")))
-SRC_FPS, FPS, SR = int(os.environ.get("SRC_FPS", 15)), 30, 48000
+SRC_FPS, FPS, SR = int(os.environ.get("SRC_FPS", 30)), 30, 48000
 SHOTS = {s["id"]: s for s in TL["shots"]}
 WIDE = os.environ.get("ASPECT", "16:9") == "16:9"
 W_, H_ = (1920, 1080) if WIDE else (1080, 1920)
@@ -41,7 +41,8 @@ def shot_clips():
         if not os.path.exists(out):
             run(["ffmpeg", "-y", "-v", "error", "-framerate", str(SRC_FPS), "-i", src, "-vf",
                  f"scale={W_}:{H_}:flags=lanczos,unsharp=5:5:0.7:5:5:0.0,"
-                 f"minterpolate=fps={FPS}:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1,"
+                 + (f"minterpolate=fps={FPS}:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1," if SRC_FPS != FPS else "")
+                 + "vignette=angle=PI/6,noise=alls=2:allf=t,"   # gentle lens vignette + film grain
                  f"tpad=stop_mode=clone:stop_duration=1,trim=duration={dur:.4f},setpts=PTS-STARTPTS,"
                  "eq=saturation=1.12:contrast=1.04",
                  "-c:v", "libx264", "-preset", "medium", "-crf", "14", "-pix_fmt", "yuv420p", "-an", out])

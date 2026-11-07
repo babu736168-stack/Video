@@ -12,12 +12,13 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.environ.get("CHAR_DATA", os.path.join(HERE, "..", "..", "sneeze_short", "data"))
 DATA_OWN = os.path.join(HERE, "..", "data")
 BASE_OBJ = os.path.join(DATA, "base.obj")
-TARGETS = [("caucasian-male-young.target", 1.0), ("universal-male-young-maxmuscle-averageweight.target", 0.35)]
+TARGETS = [("caucasian-male-young.target", 1.0), ("universal-male-young-maxmuscle-averageweight.target", float(os.environ.get("MUSCLE", "0.15")))]
 
 
 def morphed_obj():
     """Applies MakeHuman (CC0) morph targets to base.obj and caches the result."""
-    out = os.path.join(DATA, "base_morphed.obj")
+    tag = "_".join(f"{w:g}" for _, w in TARGETS)
+    out = os.path.join(DATA_OWN, f"base_morphed_{tag}.obj")
     if os.path.exists(out):
         return out
     lines = open(BASE_OBJ).read().split("\n")
@@ -38,6 +39,10 @@ SHORTS = os.environ.get("SHORTS", "1") == "1"
 SHIRT = (0.03, 0.08, 0.2)
 PANTS = (0.015, 0.015, 0.02)
 SHOES = (0.75, 0.75, 0.78)
+SHOE_UP = (0.9, 0.22, 0.04)
+# x-ray shell: a crisp cyan rim (fresnel power) and an almost clear centre
+XR_POW = float(os.environ.get("XR_POW", "2.6"))
+XR_COL = (0.25, 0.65, 1.0, 1)   # orange knit upper
 
 
 # ----------------------------------------------------------------------------- materials
@@ -123,8 +128,8 @@ def skin_material(name="skin"):
     # x-ray shell
     xr = nt.nodes.new("ShaderNodeValue"); xr.name = "xray"; xr.outputs[0].default_value = 0.0
     fres = nt.nodes.new("ShaderNodeLayerWeight"); fres.inputs["Blend"].default_value = 0.35
-    em = nt.nodes.new("ShaderNodeEmission"); em.inputs["Color"].default_value = (0.55, 0.85, 1.0, 1)
-    ramp = nt.nodes.new("ShaderNodeMath"); ramp.operation = "POWER"; ramp.inputs[1].default_value = 1.6
+    em = nt.nodes.new("ShaderNodeEmission"); em.inputs["Color"].default_value = XR_COL
+    ramp = nt.nodes.new("ShaderNodeMath"); ramp.operation = "POWER"; ramp.inputs[1].default_value = XR_POW
     nt.links.new(fres.outputs["Facing"], ramp.inputs[0])
     nt.links.new(ramp.outputs[0], em.inputs["Strength"])
     tr = nt.nodes.new("ShaderNodeBsdfTransparent")
@@ -144,9 +149,9 @@ def xray_wrap(m):
     src = out.inputs["Surface"].links[0].from_socket
     xr = nt.nodes.new("ShaderNodeValue"); xr.name = "xray"; xr.outputs[0].default_value = 0.0
     fres = nt.nodes.new("ShaderNodeLayerWeight"); fres.inputs["Blend"].default_value = 0.35
-    pw = nt.nodes.new("ShaderNodeMath"); pw.operation = "POWER"; pw.inputs[1].default_value = 1.6
+    pw = nt.nodes.new("ShaderNodeMath"); pw.operation = "POWER"; pw.inputs[1].default_value = XR_POW
     nt.links.new(fres.outputs["Facing"], pw.inputs[0])
-    em = nt.nodes.new("ShaderNodeEmission"); em.inputs["Color"].default_value = (0.55, 0.85, 1.0, 1)
+    em = nt.nodes.new("ShaderNodeEmission"); em.inputs["Color"].default_value = XR_COL
     nt.links.new(pw.outputs[0], em.inputs["Strength"])
     tr = nt.nodes.new("ShaderNodeBsdfTransparent")
     add = nt.nodes.new("ShaderNodeAddShader")
@@ -311,6 +316,74 @@ def build_lights():
     area("top", (0, 0, 2.6), 80, 3.0)
 
 
+STADIUM = os.environ.get("STADIUM", "1") == "1"
+
+
+def build_stands(g, seg_len=10.0, n_seg=14):
+    """Covered grandstands on both sides of the track: concrete terraces, individual seats in a stadium
+    colour scheme, aisles, a roof on slim columns. Built as 10 m segments that scroll and wrap."""
+    import bmesh
+    from mathutils import Matrix
+    rng = np.random.default_rng(11)
+    conc = principled("concrete", (0.48, 0.47, 0.45), rough=0.9, bump=(40.0, 0.15, 6.0))
+    seat = _nodes("seats"); sm_, snt, sout = seat
+    sb = snt.nodes.new("ShaderNodeBsdfPrincipled"); sb.inputs["Roughness"].default_value = 0.4
+    at = snt.nodes.new("ShaderNodeAttribute"); at.attribute_name = "scol"; at.attribute_type = "GEOMETRY"
+    snt.links.new(at.outputs["Color"], sb.inputs["Base Color"]); snt.links.new(sb.outputs[0], sout.inputs["Surface"])
+    roof = principled("roof", (0.82, 0.83, 0.85), rough=0.5, metal=0.6)
+    steel = principled("steel", (0.25, 0.26, 0.28), rough=0.4, metal=0.9)
+    BLUE_, NAVY, WHITE, YEL = (0.02, 0.12, 0.45), (0.01, 0.04, 0.16), (0.75, 0.75, 0.75), (0.8, 0.55, 0.02)
+    movers = []
+    x0, tiers, run_, rise = 7.4, 16, 0.85, 0.42
+    for sx in (1, -1):
+        bm = bmesh.new(); cl = bm.loops.layers.color.new("scol")
+        mats = []   # per-face material index
+        def box(c, size, mi, col=None):
+            r = bmesh.ops.create_cube(bm, size=1.0, matrix=Matrix.Translation(c) @ Matrix.Diagonal((*size, 1)))
+            fs = {f for v in r["verts"] for f in v.link_faces}
+            for f in fs:
+                f.material_index = mi
+                if col:
+                    for l in f.loops:
+                        l[cl] = (*col, 1)
+        # front wall + terraces
+        box((sx * (x0 - 0.1), 0, g + 0.6), (0.2, seg_len, 1.2), 0)
+        for i in range(tiers):
+            xa = x0 + i * run_; z = g + 1.2 + i * rise
+            box((sx * (xa + run_ / 2), 0, z - rise / 2), (run_, seg_len, rise), 0)
+            for j in range(int(seg_len / 0.5)):
+                y = -seg_len / 2 + 0.25 + j * 0.5
+                if j in (0, 1):          # aisle stairs at the segment edge
+                    continue
+                u = (j + i * 0.5) / 20
+                col = BLUE_ if (i // 4 + j // 6) % 3 else NAVY
+                if 6 <= i <= 8 and 6 <= j <= 13:
+                    col = WHITE if (i + j) % 2 else YEL     # a simple pattern block, as many stadiums have
+                col = tuple(c * rng.uniform(0.85, 1.1) for c in col)
+                xs = sx * (xa + 0.45)
+                box((xs, y, z + 0.42), (0.42, 0.44, 0.06), 1, col)                       # seat pan
+                box((sx * (xa + 0.68), y, z + 0.62), (0.05, 0.44, 0.38), 1, col)          # backrest
+                box((xs, y, z + 0.2), (0.06, 0.06, 0.38), 3)                              # stem
+        top = x0 + tiers * run_; ztop = g + 1.2 + tiers * rise
+        box((sx * (top + 0.15), 0, (g + ztop + 3.2) / 2), (0.3, seg_len, ztop - g + 3.2), 0)   # back wall
+        # roof: slanted canopy on two columns per segment
+        rz0, rz1 = ztop + 3.4, ztop + 2.6
+        verts = [bm.verts.new((sx * (top + 0.5), yy, rz0)) for yy in (-seg_len / 2, seg_len / 2)] + \
+                [bm.verts.new((sx * (x0 - 1.5), yy, rz1)) for yy in (seg_len / 2, -seg_len / 2)]
+        f = bm.faces.new(verts if sx > 0 else verts[::-1]); f.material_index = 2
+        for yy in (-seg_len / 4, seg_len / 4):
+            box((sx * (top - 0.4), yy, (g + rz0) / 2), (0.25, 0.25, rz0 - g), 3)
+            box((sx * (top - 0.4 - (top - x0 + 1.1) / 2), yy, (rz0 + rz1) / 2 - 0.25), (top - x0 + 1.1, 0.12, 0.3), 3)
+        me = bpy.data.meshes.new(f"stand{sx}"); bm.to_mesh(me); bm.free()
+        for m in (conc, sm_, roof, steel):
+            me.materials.append(m)
+        for k in range(n_seg):
+            o = bpy.data.objects.new(f"stand{sx}_{k}", me); bpy.context.collection.objects.link(o)
+            y0 = -70 + seg_len / 2 + k * seg_len; o.location = (0, y0, 0); movers.append((o, y0))
+    # an apron of grass/concrete between fence and stands
+    return movers
+
+
 def build_track(rng_seed=4):
     """Outdoor running track that scrolls under a runner who stays at the origin (running toward -Y).
     Returns dict(scroll=<value node>, movers=[(obj, y0)]): set scroll to the distance run (m) and wrap movers."""
@@ -385,7 +458,9 @@ def build_track(rng_seed=4):
     lnt.links.new(oi.outputs["Random"], lm_.inputs["Factor"]); lnt.links.new(lm_.outputs[2], pb.inputs["Base Color"])
     tm.materials.append(leaves)
     rng = np.random.default_rng(rng_seed); movers = []
-    for i in range(70):
+    if STADIUM:
+        movers += build_stands(g)
+    for i in range(0 if STADIUM else 70):
         side = 1 if i % 2 else -1
         o = bpy.data.objects.new(f"tree{i}", tm); bpy.context.collection.objects.link(o)
         y0 = rng.uniform(-70, 70); s = rng.uniform(0.8, 1.4)
@@ -660,6 +735,10 @@ def build_character(prefix=""):
         for q in pts:
             bm.verts.new(cen + (q - cen) * Vector((1.08, 1.05, 1.1)))
         bmesh.ops.convex_hull(bm, input=bm.verts[:])
+        zmin = min(v.co.z for v in bm.verts)
+        for v in bm.verts:          # flat sole with a little toe spring at the very front
+            if v.co.z < zmin + 0.012:
+                v.co.z = zmin
         sm = bpy.data.meshes.new(f"shoe_{side}"); bm.to_mesh(sm); bm.free()
         so = bpy.data.objects.new(f"shoe_{side}", sm); bpy.context.collection.objects.link(so)
         for poly in sm.polygons:
@@ -671,11 +750,32 @@ def build_character(prefix=""):
         pb = nt_.nodes.new("ShaderNodeBsdfPrincipled"); pb.inputs["Roughness"].default_value = 0.5
         tc = nt_.nodes.new("ShaderNodeTexCoord"); sp = nt_.nodes.new("ShaderNodeSeparateXYZ")
         nt_.links.new(tc.outputs["Object"], sp.inputs[0])
-        lt = nt_.nodes.new("ShaderNodeMath"); lt.operation = "LESS_THAN"; lt.inputs[1].default_value = sole_z
-        nt_.links.new(sp.outputs["Z"], lt.inputs[0])
+        zb = zmin
+        # bands from the ground up: dark rubber outsole, white foam midsole, coloured knit upper
+        def band(z, ca, cb, fac_in=None):
+            lt = nt_.nodes.new("ShaderNodeMath"); lt.operation = "LESS_THAN"; lt.inputs[1].default_value = z
+            nt_.links.new(sp.outputs["Z"], lt.inputs[0])
+            mx = nt_.nodes.new("ShaderNodeMix"); mx.data_type = "RGBA"
+            if isinstance(ca, tuple):
+                mx.inputs[6].default_value = (*ca, 1)
+            else:
+                nt_.links.new(ca, mx.inputs[6])
+            mx.inputs[7].default_value = (*cb, 1)
+            nt_.links.new(lt.outputs[0], mx.inputs["Factor"])
+            return mx.outputs[2], lt.outputs[0]
+        knit = nt_.nodes.new("ShaderNodeTexWave"); knit.inputs["Scale"].default_value = 180
+        knit.inputs["Distortion"].default_value = 2
+        nt_.links.new(tc.outputs["Object"], knit.inputs["Vector"])
+        kmx = nt_.nodes.new("ShaderNodeMix"); kmx.data_type = "RGBA"
+        kmx.inputs[6].default_value = (*SHOE_UP, 1); kmx.inputs[7].default_value = tuple(c * 0.7 for c in SHOE_UP) + (1,)
+        nt_.links.new(knit.outputs["Fac"], kmx.inputs["Factor"])
+        c1, _ = band(zb + 0.034, kmx.outputs[2], (0.92, 0.92, 0.9))
+        sole_z = zb + 0.009
+        lt2 = nt_.nodes.new("ShaderNodeMath"); lt2.operation = "LESS_THAN"; lt2.inputs[1].default_value = sole_z
+        nt_.links.new(sp.outputs["Z"], lt2.inputs[0])
         mx = nt_.nodes.new("ShaderNodeMix"); mx.data_type = "RGBA"
-        mx.inputs[6].default_value = (*SHOES, 1); mx.inputs[7].default_value = (0.03, 0.03, 0.035, 1)
-        nt_.links.new(lt.outputs[0], mx.inputs["Factor"]); nt_.links.new(mx.outputs[2], pb.inputs["Base Color"])
+        nt_.links.new(c1, mx.inputs[6]); mx.inputs[7].default_value = (0.03, 0.03, 0.035, 1)
+        nt_.links.new(lt2.outputs[0], mx.inputs["Factor"]); nt_.links.new(mx.outputs[2], pb.inputs["Base Color"])
         nt_.links.new(pb.outputs["BSDF"], out_.inputs["Surface"])
         sm.materials.append(xray_wrap(m_))
         objs[f"shoe_{side}"] = so; SHOES_OBJ.append(so)
@@ -715,6 +815,14 @@ def build_character(prefix=""):
         sol = bo.modifiers.new("sol", "SOLIDIFY"); sol.thickness = 0.0012
         objs[f"brow{s}"] = bo
 
+    # fabric drape: smooth away nipples / muscle detail under the tee and shorts
+    vg = body.vertex_groups.new(name="fabric")
+    for i, c in enumerate(cloth):
+        w = max(float(c), 1.0 if vmat[i] == 2 else 0.0)
+        if w > 0:
+            vg.add([i], w, "REPLACE")
+    sm = body.modifiers.new("drape", "SMOOTH"); sm.vertex_group = "fabric"
+    sm.factor = 0.9; sm.iterations = int(os.environ.get("DRAPE", "12"))
     sub = body.modifiers.new("sub", "SUBSURF"); sub.levels = 1; sub.render_levels = 1
     objs["hair"] = hair
 

@@ -27,6 +27,7 @@ SCALE = arg("--scale", 0.5)
 ONLY = [s for s in arg("--only", "").split(",") if s]
 WIDE = arg("--aspect", "16:9") == "16:9"   # landscape by default; --aspect 9:16 for the vertical short
 LENS_MUL = float(os.environ.get("LENS_MUL", "1.0"))
+FSTOP_MUL = float(os.environ.get("FSTOP_MUL", "0.5"))
 OUT = os.path.join(HERE, "..", "out")
 TL = json.load(open(os.path.join(OUT, "timeline.json")))
 
@@ -501,7 +502,7 @@ def look(loc, tgt, lens, fstop=4.0, roll=0.0, shake=0.0, t=0.0):
     cam.location = loc
     cam.rotation_euler = (tgt - loc).to_track_quat("-Z", "Y").to_euler()
     cam.rotation_euler.rotate_axis("Z", math.radians(roll))
-    cam.data.lens = lens * LENS_MUL * SHOT_LENS.get(CUR, 1.0); cam.data.dof.focus_distance = (tgt - loc).length; cam.data.dof.aperture_fstop = fstop
+    cam.data.lens = lens * LENS_MUL * SHOT_LENS.get(CUR, 1.0); cam.data.dof.focus_distance = (tgt - loc).length; cam.data.dof.aperture_fstop = fstop * FSTOP_MUL
 
 
 def L(a, b, u):
@@ -528,7 +529,15 @@ REST_X = {b.name: (b.matrix_local.to_3x3() @ Vector((1, 0, 0))) for b in rig.dat
 XR = [False]
 
 
+_WBG = bpy.context.scene.world.node_tree.nodes["Background"].inputs["Strength"]
+_W0 = _WBG.default_value; _SUN = bpy.data.objects["sun"].data; _S0 = _SUN.energy
+XR_DIM = float(os.environ.get("XR_DIM", "0.9"))
+
+
 def xray(v):
+    """v: 0 normal .. 1 full x-ray. The world dims as the body turns to glass, so the glowing anatomy
+    becomes the light source of the frame (medical-visualisation look)."""
+    _WBG.default_value = _W0 * (1 - XR_DIM * v); _SUN.energy = _S0 * (1 - XR_DIM * v)
     XR[0] = v > 0.3
     for mt in MATS:
         n = mt.node_tree.nodes.get("xray") if mt.node_tree else None
@@ -672,6 +681,107 @@ def run(T, gait="jog", k=1.0, jaw=6.0, head=0.0, breath_rate=1.4):
     arm("l", -sw * math.cos(2 * math.pi * ph) + 8, 75 + 10 * k, k=1.0)
     arm("r", -sw * math.cos(2 * math.pi * (ph + 0.5)) + 8, 75 + 10 * k, k=1.0)
     return ph
+
+
+# ----------------------------------------------------------------------------- motion capture run
+# Real running from the CMU motion-capture database, retargeted by bone DIRECTIONS (so the runner keeps
+# his own proportions), hips from the capture, feet put back on the ground every frame.
+MOCAP = os.environ.get("MOCAP", "1") == "1"
+if MOCAP:
+    import mocap as MC_
+    _MD = os.path.join(HERE, "..", "data", "mocap")
+    CLIPS = dict(jog="16_35", sprint="16_45", easy="16_36")
+    CYC = {}
+    _our_leg = LEG["l"]["Lt"] + LEG["l"]["Ls"]
+    for gname, f in CLIPS.items():
+        cyc = MC_.cycle(MC_.load(os.path.join(_MD, f + ".bvh")))
+        _q = cyc["Q"]; _i = cyc["idx"]
+        cyc["ah"] = float(np.percentile(np.minimum(_q[:, _i["LeftFoot"], 2], _q[:, _i["RightFoot"], 2]), 3))
+        cyc["th"] = float(np.percentile(np.minimum(_q[:, _i["LeftToeBase"], 2], _q[:, _i["RightToeBase"], 2]), 3))
+        CYC[gname] = cyc
+        GAITS[gname]["speed"] = cyc["speed"] * _our_leg / 0.86
+        GAITS[gname]["P"] = cyc["period"]
+    _sgn = 1.0 if LS > 0 else -1.0    # mocap "Left" is at +X after facing -Y
+    BMAP = {}
+    for s, side in (("l", "Left"), ("r", "Right")):
+        BMAP[f"{s}_up"] = (f"{side}Arm", f"{side}ForeArm")
+        BMAP[f"{s}_fa"] = (f"{side}ForeArm", f"{side}Hand")
+        BMAP[f"{s}_hand"] = (f"{side}Hand", f"{side}HandIndex1")
+        BMAP[f"{s}_th"] = (f"{side}UpLeg", f"{side}Leg")
+        BMAP[f"{s}_sh"] = (f"{side}Leg", f"{side}Foot")
+        BMAP[f"{s}_ft"] = (f"{side}Foot", f"{side}ToeBase")
+    _spine = ["pelvis"] + SP
+    REST_DIR = {b.name: (b.tail_local - b.head_local).normalized() for b in rig.data.bones}
+    REST_LEN = {b.name: b.length for b in rig.data.bones}
+
+
+def gait_speed(g):
+    return g["speed"] if "speed" in g else 0.5 * g["stride"] / (0.4 * g["P"])
+
+
+def _mc(Q, ix, name):
+    v = Q[ix[name]]
+    return Vector((v[0] * _sgn, v[1], v[2]))
+
+
+def run_mocap(T, gait="jog", k=1.0, jaw=6.0, head=0.0, breath_rate=1.4):
+    cyc = CYC[gait]; ix = cyc["idx"]
+    sc_ = _our_leg / 0.86
+    Q = MC_.sample(cyc, T) * sc_
+    P = lambda n: _mc(Q, ix, n)
+    pose({})
+    rest_hips = (J["l-upper-leg"] + J["r-upper-leg"]) / 2
+    mh = (P("LeftUpLeg") + P("RightUpLeg")) / 2
+    mh.z += G
+    rig.location = (rest_hips.lerp(mh, k) - rest_hips)
+
+    def aim_dir(bn, d, ref):
+        pb = rig.pose.bones[bn]
+        d = REST_DIR[bn].lerp(d.normalized(), k).normalized()
+        bpy.context.view_layer.update()
+        aim(pb, pb.head + d * REST_LEN[bn], ref)
+
+    # torso: lower half of the spine chain follows Hips->Spine, upper half Spine->Neck; twist from hips/shoulders
+    hipline = (P("LeftUpLeg") - P("RightUpLeg")) * LS
+    shline = (P("LeftArm") - P("RightArm")) * LS
+    low = P("Spine") - P("Hips"); up = P("Neck") - P("Spine")
+    for i, bn in enumerate(_spine):
+        f = i / max(1, len(_spine) - 1)
+        aim_dir(bn, low.lerp(up, f), hipline.lerp(shline, f).normalized() * LS)
+    aim_dir("neck", P("Head") - P("Neck"), shline.normalized() * LS)
+    hd = P("Head_end") - P("Head") if "Head_end" in ix else up
+    aim_dir("head", hd, shline.normalized() * LS)
+    rig.pose.bones["head"].rotation_euler.x += math.radians(head)
+    for bn, (a, b) in BMAP.items():
+        if bn.endswith("_hand"):     # firm wrist: mostly in line with the forearm, slight drop
+            fa = P(BMAP[bn.replace("_hand", "_fa")][1]) - P(BMAP[bn.replace("_hand", "_fa")][0])
+            aim_dir(bn, fa.normalized() * 0.85 + (P(b) - P(a)).normalized() * 0.15 + Vector((0, 0, -0.12)),
+                    ARMREF[2])
+            continue
+        if bn.endswith(("_th", "_sh", "_ft")):
+            ref = (1, 0, 0)
+        elif bn.endswith("_clav"):
+            ref = None
+        else:
+            ref = ARMREF[{"up": 0, "fa": 1, "hand": 2}[bn.split("_")[1]]]
+        aim_dir(bn, P(b) - P(a), ref)
+    fist(FIST)
+    rig.pose.bones["jaw"].rotation_mode = "XYZ"
+    rig.pose.bones["jaw"].rotation_euler = (math.radians(breathe_jaw(T, breath_rate, jaw)), 0, 0)
+    # feet on the ground: our heel/toe "contact height" matches the capture's at every frame
+    bpy.context.view_layer.update()
+    def ours(s_):
+        pf = rig.pose.bones[f"{s_}_ft"]
+        return min((rig.matrix_world @ pf.head).z - J[f"{s_}-ankle"].z, (rig.matrix_world @ pf.tail).z - J[f"{s_}-foot-1"].z)
+    def theirs(side):
+        return min(P(f"{side}Foot").z - cyc["ah"] * sc_, P(f"{side}ToeBase").z - cyc["th"] * sc_)
+    c_o = min(ours("l"), ours("r")); c_t = min(theirs("Left"), theirs("Right"))
+    rig.location.z += (max(c_t, 0.0) - c_o) * k + (1 - k) * 0
+    return (T / cyc["period"]) % 1.0
+
+
+if MOCAP:
+    run = run_mocap
 
 
 def scroll(dist):
@@ -1003,6 +1113,13 @@ def s_trained(u, t, T):
     look(L(c + Vector((0.4, -1.6, 0.1)), c + Vector((1.2, -4.0, 0.6)), ez(u)), c, 38, 4.0, roll=L(2, 0, u), shake=0.003, t=t)
 
 
+def s_runtest(u, t, T):
+    gname = os.environ.get("GAIT", "jog"); g = GAITS[gname]
+    T = u * g["P"]; run(T, gname, jaw=6); scroll(T * gait_speed(g))
+    c = Vector((0, 0, HIPZ - 0.05))
+    look(orbit(c, 3.6, float(os.environ.get("AZ", "0")), 3), c, 35, 8.0)
+
+
 def s_handtest(u, t, T):
     run(T, "jog")
     bpy.context.view_layer.update()
@@ -1087,14 +1204,14 @@ V3 = dict(intro=v_intro, muscles=v_muscles, mito=v_mito, brain=v_brain, diaphrag
           buffer=v_buffer, lactate=v_lactate, trained=v_trained)
 
 
-SHOTS = dict(handtest=s_handtest, intro=s_intro, muscles=s_muscles, mito=s_mito, brain=s_brain, diaphragm=s_diaphragm, alveoli=s_alveoli,
+SHOTS = dict(runtest=s_runtest, handtest=s_handtest, intro=s_intro, muscles=s_muscles, mito=s_mito, brain=s_brain, diaphragm=s_diaphragm, alveoli=s_alveoli,
              heart=s_heart, sprint=s_sprint, buffer=s_buffer, lactate=s_lactate, after=s_after, trained=s_trained)
 TL_SHOT = {s["id"]: s for s in TL["shots"]}
 if os.environ.get("CAMS", "v3") == "v3":
     SHOTS.update(V3)
 
 # ----------------------------------------------------------------------------- render
-for shot in TL["shots"] + ([dict(id="handtest", start=3.0, end=4.0)] if "handtest" in ONLY else []):
+for shot in TL["shots"] + [dict(id=k, start=3.0, end=4.0) for k in ("handtest", "runtest") if k in ONLY]:
     sid = shot["id"]
     if ONLY and sid not in ONLY:
         continue

@@ -131,17 +131,20 @@ def set_col(mat_name, col):
     bpy.data.materials[mat_name].node_tree.nodes["col"].outputs[0].default_value = (*col, 1)
 
 
-g_air = gm("g_air", GREEN, 2.5, 0.7)
-g_lung = gm("g_lung", PINK, 1.5, 0.5, ("cells", 9.0))
+g_air = gm("g_air", (1.0, 0.55, 0.4), 2.5, 0.7)
+import anatomy as AN
+HAS_ATLAS = os.path.exists(os.path.join(AN.DATA, "anatomy.blend")) and os.environ.get("ATLAS", "1") == "1"
+TX = 13.0 if HAS_ATLAS else 1.0
+g_lung = gm("g_lung", PINK, 1.5, 0.5, ("cells", 9.0 * TX))
 g_bron = gm("g_bron", (1.0, 0.55, 0.4), 5.0, 0.9)
 g_spine = gm("g_spine", (0.9, 0.95, 1.0), 1.4, 0.55)
-g_heart = gm("g_heart", RED, 4.0, 0.9, ("stripes", 5.0))
-g_dia = gm("g_dia", (1.0, 0.3, 0.12), 2.2, 0.7, ("stripes", 6.0))
+g_heart = gm("g_heart", RED, 4.0, 0.9, ("stripes", 5.0 * TX))
+g_dia = gm("g_dia", (1.0, 0.3, 0.12), 2.2, 0.7, ("stripes", 6.0 * TX))
 g_rib = gm("g_rib", (0.85, 0.95, 1.0), 1.2, 0.35)
 g_brain = gm("g_brain", PINK, 2.2, 0.8)
 g_nerve = gm("g_nerve", (1.0, 0.9, 0.4), 3.0, 0.8)
 g_sig = gm("g_sig", (1.0, 1.0, 0.6), 25.0, 1.0)
-g_mus = gm("g_mus", RED, 2.5, 0.75, ("stripes", 7.0))
+g_mus = gm("g_mus", RED, 2.5, 0.75, ("stripes", 7.0 * TX))
 g_atp = gm("g_atp", (1.0, 0.85, 0.2), 6.0, 1.0)
 g_o2 = gm("g_o2", BLUE, 3.0, 1.0)
 g_co2 = gm("g_co2", GREY, 1.6, 0.95)
@@ -341,6 +344,39 @@ for s in ("l", "r"):
     legart[s] = (organ(o, f"{s}_th"), d)
 MUS_PTS = {s: [J[f"{s}-upper-leg"].lerp(J[f"{s}-knee"], f) + Vector((0, -0.035 if f < 0.5 else 0.035, 0)) for f in (0.3, 0.45, 0.6, 0.7)]
            for s in ("l", "r")}
+# ---- real anatomy (Z-Anatomy atlas) replaces the procedural stand-ins when available
+skull = None
+if HAS_ATLAS:
+    ANAT = AN.load(J)
+    g_skull = gm("g_skull", (0.85, 0.93, 1.0), 0.5, 0.18)
+    g_rib = gm("g_ribs", (0.85, 0.93, 1.0), 0.55, 0.22)
+    old = lungs + [heart, dome, brain] + ribs + spine_parts + legmus + bronchi + btrees + [aorta, vena]
+    for o in old:
+        ORG.pop(o.name, None)
+        if o in props:
+            props.remove(o)
+        o.hide_render = True
+
+    def reg(name, mat, bone):
+        o, c = ANAT[name]
+        o.data.materials.clear(); o.data.materials.append(mat); props.append(o)
+        return organ(o, bone, c)
+    lungs = [reg("lung_l", g_lung, TORSO), reg("lung_r", g_lung, TORSO)]
+    heart = reg("heart", g_heart, TORSO)
+    dome = reg("diaphragm", g_dia, TORSO)
+    ribs = [reg("ribcage", g_rib, TORSO)]
+    brain = reg("brain", g_brain, "head")
+    skull = reg("skull", g_skull, "head")
+    bronchi = [reg("airway", g_bron, TORSO)]
+    btrees = []
+    aorta = vena = reg("vessels", g_art, TORSO)
+    legmus = []
+    spine_parts = [reg("spine", g_spine, TORSO), reg("pelvis", g_spine, TORSO)]
+    for s_ in ("l", "r"):
+        legmus += [reg(f"thighmus_{s_}", g_mus, f"{s_}_th"), reg(f"shinmus_{s_}", g_mus, f"{s_}_sh")]
+        spine_parts += [reg(f"thighbone_{s_}", g_spine, f"{s_}_th"), reg(f"shinbone_{s_}", g_spine, f"{s_}_sh")]
+    spine_parts += ribs + [skull]
+
 # loose particles (positioned in world space every frame)
 sparks = [ball(f"atp{i}", 0.006, g_atp, 8) for i in range(40)]
 acid = [ball(f"acid{i}", 0.006, g_acid, 8) for i in range(40)]
@@ -566,7 +602,7 @@ def foot_pitch(ph):
 
 
 GAITS = dict(jog=dict(P=0.72, stride=1.0, lift=1.0, lean=7, arm=28, bob=0.025),
-             sprint=dict(P=0.56, stride=1.3, lift=1.45, lean=12, arm=40, bob=0.035),
+             sprint=dict(P=0.56, stride=1.3, lift=1.45, lean=12, arm=34, bob=0.035),
              easy=dict(P=0.76, stride=0.9, lift=0.85, lean=5, arm=26, bob=0.02))
 
 
@@ -651,6 +687,7 @@ def reset():
     for k, (c, s) in GM.items():
         set_val(k, "strength", s); set_col(k, c)
     set_val("skin", "flush", 0.0)
+    bpy.data.materials["g_lung"].node_tree.nodes["alpha"].inputs["Fac"].default_value = 0.5
     for d in ORG.values():
         d["k"] = Vector((1, 1, 1)); d["off"] = Vector()
     rig.location = (0, 0, 0)
@@ -675,7 +712,7 @@ def lungs_fill(f, depth=1.0):
     for l in lungs:
         ORG[l.name]["k"] = Vector((1 + 0.12 * f * depth, 1 + 0.12 * f * depth, 1 + 0.22 * f * depth))
         ORG[l.name]["off"] = Vector((0, 0, -0.012 * f * depth))
-    ORG["dome"]["off"] = Vector((0, 0, -0.03 * f * depth)); ORG["dome"]["k"] = Vector((1 + 0.05 * f * depth, 1, 1 - 0.45 * f * depth))
+    ORG[dome.name]["off"] = Vector((0, 0, -0.03 * f * depth)); ORG[dome.name]["k"] = Vector((1 + 0.05 * f * depth, 1, 1 - 0.45 * f * depth))
     for r in ribs:
         ORG[r.name]["k"] = Vector((1 + 0.06 * f * depth, 1 + 0.08 * f * depth, 1))
 
@@ -812,9 +849,9 @@ def s_alveoli(u, t, T):
 def s_heart(u, t, T):
     g = GAITS["jog"]; run(T, "jog", jaw=10); scroll(T * gait_speed(g))
     xray(0.8); show(heart, aorta, vena, *lungs, *[o for o, _ in legart.values()])
-    set_val("g_lung", "strength", 0.8)
+    set_val("g_lung", "strength", 0.6); bpy.data.materials["g_lung"].node_tree.nodes["alpha"].inputs["Fac"].default_value = 0.15
     hb = heartbeat(T, 160)
-    ORG["heart"]["k"] = Vector((1 + 0.18 * hb,) * 3)
+    ORG[heart.name]["k"] = Vector((1 + 0.18 * hb,) * 3)
     set_val("g_heart", "strength", 3 + 10 * hb)
     follow()
     aor = [wpos(TORSO, p) for p in AOR]; ven = [wpos(TORSO, p) for p in VEN]
@@ -895,7 +932,7 @@ def s_lactate(u, t, T):
     g = GAITS["jog"]; run(T, "jog", jaw=12); scroll(T * gait_speed(g))
     xray(0.75 * win(u, 0.15, 0.35)); show(heart, aorta, vena, *legmus, *[o for o, _ in legart.values()])
     set_val("g_mus", "strength", 2.0)
-    hb = heartbeat(T, 150); ORG["heart"]["k"] = Vector((1 + 0.15 * hb,) * 3)
+    hb = heartbeat(T, 150); ORG[heart.name]["k"] = Vector((1 + 0.15 * hb,) * 3)
     gl = win(u, 0.5, 0.9)
     set_col("g_heart", (1.0, 0.06 + 0.5 * gl, 0.04)); set_val("g_heart", "strength", 3 + 8 * hb + 4 * gl)
     follow()
@@ -957,7 +994,7 @@ def s_trained(u, t, T):
     if x > 0:
         show(heart, *legmus, *lungs)
         set_col("g_mus", GREEN); set_col("g_heart", GREEN); set_val("g_lung", "strength", 0.8)
-        hb = heartbeat(T, 110); ORG["heart"]["k"] = Vector((1 + 0.12 * hb,) * 3)
+        hb = heartbeat(T, 110); ORG[heart.name]["k"] = Vector((1 + 0.12 * hb,) * 3)
         set_val("g_heart", "strength", 3 + 6 * hb)
         follow()
     c = Vector((0, 0, HIPZ + 0.3))

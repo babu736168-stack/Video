@@ -10,6 +10,7 @@ from mathutils import Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.environ.get("CHAR_DATA", os.path.join(HERE, "..", "..", "sneeze_short", "data"))
+DATA_OWN = os.path.join(HERE, "..", "data")
 BASE_OBJ = os.path.join(DATA, "base.obj")
 TARGETS = [("caucasian-male-young.target", 1.0), ("universal-male-young-maxmuscle-averageweight.target", 0.35)]
 
@@ -32,8 +33,10 @@ def morphed_obj():
     open(out, "w").write("\n".join(lines))
     return out
 J = {}  # joint name -> world position (metres)
-SHIRT = (0.02, 0.32, 0.36)   # teal running tee
-PANTS = (0.015, 0.015, 0.02)  # black joggers
+OUTFIT = os.environ.get("OUTFIT", "tee")   # "tee": fitted running tee; "vest" (experimental)
+SHORTS = os.environ.get("SHORTS", "1") == "1"
+SHIRT = (0.03, 0.08, 0.2)
+PANTS = (0.015, 0.015, 0.02)
 SHOES = (0.75, 0.75, 0.78)
 
 
@@ -109,6 +112,14 @@ def skin_material(name="skin"):
     mixc = nt.nodes.new("ShaderNodeMix"); mixc.data_type = "RGBA"
     mixc.inputs["A"].default_value = (0.6, 0.32, 0.2, 1); mixc.inputs["B"].default_value = (0.85, 0.22, 0.18, 1)
     nt.links.new(flush.outputs[0], mixc.inputs["Factor"]); nt.links.new(mixc.outputs["Result"], p.inputs["Base Color"])
+    skin_png = os.path.join(DATA_OWN, "skin_diffuse.png")
+    if os.path.exists(skin_png):   # photographic MakeHuman skin (CC0), blended to a medium tone
+        tx = nt.nodes.new("ShaderNodeTexImage"); tx.image = bpy.data.images.load(skin_png)
+        hs = nt.nodes.new("ShaderNodeHueSaturation")
+        hs.inputs["Saturation"].default_value = 0.78; hs.inputs["Value"].default_value = 0.92
+        nt.links.new(tx.outputs["Color"], hs.inputs["Color"])
+        a_col = next(i for i in mixc.inputs if i.name == "A" and i.type == "RGBA")
+        nt.links.new(hs.outputs["Color"], a_col)
     # x-ray shell
     xr = nt.nodes.new("ShaderNodeValue"); xr.name = "xray"; xr.outputs[0].default_value = 0.0
     fres = nt.nodes.new("ShaderNodeLayerWeight"); fres.inputs["Blend"].default_value = 0.35
@@ -354,14 +365,25 @@ def build_track(rng_seed=4):
     bm = bmesh.new()
     bmesh.ops.create_cone(bm, cap_ends=True, segments=8, radius1=0.18, radius2=0.12, depth=2.4,
                           matrix=__import__("mathutils").Matrix.Translation((0, 0, 1.2)))
-    for z, r in ((3.2, 1.6), (4.3, 1.1)):
-        bmesh.ops.create_icosphere(bm, subdivisions=2, radius=r, matrix=__import__("mathutils").Matrix.Translation((0, 0, z)))
+    from mathutils import noise as _nz
+    trng = np.random.default_rng(5)
+    for k in range(16):
+        r = trng.uniform(0.45, 0.95); c = Vector((trng.normal(0, 0.75), trng.normal(0, 0.75), 3.4 + trng.uniform(-0.7, 1.6)))
+        res = bmesh.ops.create_icosphere(bm, subdivisions=3, radius=r, matrix=__import__("mathutils").Matrix.Translation(c))
+        for v in res["verts"]:   # leafy clumps: two noise octaves push the surface in and out
+            n = (v.co - c).normalized()
+            v.co += n * (0.28 * _nz.noise(v.co * 2.0) + 0.12 * _nz.noise(v.co * 7.0 + Vector((3, 1, 2))))
     tm = bpy.data.meshes.new("tree"); bm.to_mesh(tm); bm.free()
     for poly in tm.polygons:
         poly.use_smooth = True
         poly.material_index = 0 if poly.center.z < 2.0 else 1
     tm.materials.append(principled("bark", (0.12, 0.07, 0.04), rough=0.9))
-    tm.materials.append(principled("leaves", (0.08, 0.28, 0.06), rough=0.8, bump=(4.0, 0.6, 6.0)))
+    leaves = principled("leaves", (0.05, 0.16, 0.03), rough=0.85, bump=(14.0, 1.0, 8.0), sss=0.2)
+    lnt = leaves.node_tree; pb = next(n for n in lnt.nodes if n.type == "BSDF_PRINCIPLED")
+    oi = lnt.nodes.new("ShaderNodeObjectInfo"); lm_ = lnt.nodes.new("ShaderNodeMix"); lm_.data_type = "RGBA"
+    lm_.inputs[6].default_value = (0.035, 0.12, 0.025, 1); lm_.inputs[7].default_value = (0.1, 0.22, 0.04, 1)
+    lnt.links.new(oi.outputs["Random"], lm_.inputs["Factor"]); lnt.links.new(lm_.outputs[2], pb.inputs["Base Color"])
+    tm.materials.append(leaves)
     rng = np.random.default_rng(rng_seed); movers = []
     for i in range(70):
         side = 1 if i % 2 else -1
@@ -416,13 +438,23 @@ def build_track(rng_seed=4):
         sky.turbidity = 2.5
     except AttributeError:
         pass
+    hdr = os.path.join(DATA_OWN, "sky.hdr")
+    if os.path.exists(hdr) and os.environ.get("HDRI", "1") == "1":
+        env = wn.nodes.new("ShaderNodeTexEnvironment"); env.image = bpy.data.images.load(hdr)
+        tc = wn.nodes.new("ShaderNodeTexCoord"); mp = wn.nodes.new("ShaderNodeMapping")
+        mp.inputs["Rotation"].default_value = (0, 0, math.radians(float(os.environ.get("HDRI_ROT", "0"))))
+        wn.links.new(tc.outputs["Generated"], mp.inputs["Vector"]); wn.links.new(mp.outputs[0], env.inputs["Vector"])
+        sky = env
     wn.links.new(sky.outputs["Color"], bg.inputs["Color"])
-    bg.inputs["Strength"].default_value = float(os.environ.get("SKY", "0.06")) if sky.sky_type != "HOSEK_WILKIE" else 0.6
-    if hasattr(sky, "sun_disc"):
+    if sky.type == "TEX_ENVIRONMENT":
+        bg.inputs["Strength"].default_value = float(os.environ.get("SKY", "0.8"))
+    else:
+        bg.inputs["Strength"].default_value = float(os.environ.get("SKY", "0.06")) if sky.sky_type != "HOSEK_WILKIE" else 0.6
+    if hasattr(sky, "sun_disc") and sky.type == "TEX_SKY":
         sky.sun_disc = False
     # sun + soft fill
     bpy.ops.object.light_add(type="SUN"); sun = bpy.context.object; sun.name = "sun"
-    sun.data.energy = 3.2; sun.data.angle = math.radians(4); sun.data.color = (1.0, 0.95, 0.85)
+    sun.data.energy = float(os.environ.get("SUN", "3.2")); sun.data.angle = math.radians(4); sun.data.color = (1.0, 0.95, 0.85)
     sun.rotation_euler = Vector((0.4, -0.5, 0.75)).to_track_quat("Z", "Y").to_euler()
     return dict(scroll=scroll, movers=movers, ground=gr)
 
@@ -568,13 +600,17 @@ def build_character(prefix=""):
         d, t = _seg_dist(VP, a_, b_); Dv.append(d); Tv[n] = t
     nv = np.array(names)[np.array(Dv).argmin(0)]
     front = np.clip((J["neck"].y - VP[:, 1]) / 0.07, 0, 1)
-    neckline = J["neck"].z - 0.035 - 0.03 * front
+    neckline = J["neck"].z - 0.035 - (0.06 if OUTFIT == "vest" else 0.03) * front
     cloth = np.zeros(len(VP))
     tor = np.isin(nv, ["torso", "head"])
     cloth[tor] = np.clip((neckline[tor] - VP[tor, 2]) / 0.006 + 0.5, 0, 1)
     for sname in ("l_up", "r_up"):
         k = nv == sname
-        cloth[k] = np.clip((0.6 - Tv[sname][k]) / 0.03 + 0.5, 0, 1)
+        cloth[k] = 0.0 if OUTFIT == "vest" else np.clip((0.45 - Tv[sname][k]) / 0.03 + 0.5, 0, 1)
+    if OUTFIT == "vest":   # armholes: bare shoulders outside the straps
+        sx_ = abs(J["l-shoulder"].x) - 0.065          # strap outer edge
+        arm = tor & (VP[:, 2] > J["l-shoulder"].z - 0.15)
+        cloth[arm] = np.minimum(cloth[arm], np.clip((sx_ - np.abs(VP[arm, 0])) / 0.008 + 0.5, 0, 1))
     cloth[np.isin(nv, ["l_fa", "r_fa", "l_hand", "r_hand"])] = 0
     attr = me.attributes.new("cloth", "FLOAT", "POINT"); attr.data.foreach_set("value", cloth.tolist())
     for i, p in enumerate(me.polygons):
@@ -583,7 +619,11 @@ def build_character(prefix=""):
             mat[i] = 1
     mat[torso & (z <= waist)] = 2
     for s in ("l_th", "r_th", "l_sh", "r_sh"):
-        mat[near == s] = 2
+        if SHORTS:   # shorts: upper half of the thigh only
+            if s.endswith("_th"):
+                mat[(near == s) & (T[s] < 0.5)] = 2
+        else:
+            mat[near == s] = 2
     # straight hem: hip faces above the waistline belong to the shirt, torso faces below it to the trousers
     hip = np.isin(near, ["torso", "l_th", "r_th"])
     mat[hip & (z > waist)] = np.where(mat[hip & (z > waist)] == 2, 1, mat[hip & (z > waist)])

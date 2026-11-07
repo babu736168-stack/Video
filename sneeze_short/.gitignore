@@ -1,0 +1,8 @@
+out/frames/
+out/work/
+out/preview/
+out/render.log
+out/voice_raw.wav
+data/base_morphed.obj
+blender/__pycache__/
+__pycache__/

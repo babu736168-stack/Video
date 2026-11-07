@@ -7,3 +7,4 @@ data/base_morphed.obj
 blender/__pycache__/
 __pycache__/
 out/preview.log
+out/compose.log

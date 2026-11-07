@@ -16,6 +16,8 @@ SRC_FPS, FPS, SR = int(os.environ.get("SRC_FPS", 30)), 30, 48000
 SHOTS = {s["id"]: s for s in TL["shots"]}
 WIDE = os.environ.get("ASPECT", "16:9") == "16:9"
 W_, H_ = (1920, 1080) if WIDE else (1080, 1920)
+IMG = os.environ.get("IMAGES", "1") == "1" and os.path.exists(os.path.join(WORK, "images.json"))
+IMSP = json.load(open(os.path.join(WORK, "images.json"))) if IMG else []
 LAYOUT = dict(CAPSIZE="66" if WIDE else "78", CAPMARGIN="70" if WIDE else "520", BIGSIZE="170" if WIDE else "200",
               STAMP="1480,300" if WIDE else "540,560", O2POS="380,180" if WIDE else "230,380",
               CO2POS="1540,180" if WIDE else "850,380", ATPPOS="1450,300" if WIDE else "760,420")
@@ -94,10 +96,12 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                   r"{\pos(O2POS)\1c&HFF9A40&\fad(200,150)}O₂ in")
         ev.append(f"Dialogue: 1,{ts(t0 + 0.8)},{ts(sh['end'] - 0.05)},Tag,,0,0,0,,"
                   r"{\pos(CO2POS)\1c&HE0C8D0&\fad(200,150)}CO₂ out")
-    if os.path.exists(os.path.join(HERE, "data", "anatomy.blend")):
+    if not IMG and os.path.exists(os.path.join(HERE, "data", "anatomy.blend")):
         tl = TL["total"]
         ev.append(f"Dialogue: 2,{ts(tl - 2.6)},{ts(tl)},Credit,,0,0,0,,{{\\fad(300,0)}}Anatomy: Z-Anatomy / BodyParts3D (DBCLS), CC BY-SA 4.0")
     sh = SHOTS["muscles"]; t0 = sh["start"] + 0.3 * (sh["end"] - sh["start"])
+    if IMG:   # on the ATP molecule image
+        t0 = next(x["t0"] for x in IMSP if x["shot"] == "muscles" and x["i"] == 1) + 0.15
     ev.append(f"Dialogue: 1,{ts(t0)},{ts(sh['end'] - 0.05)},Tag,,0,0,0,,"
               r"{\pos(ATPPOS)\1c&H30D8FF&\fad(200,150)}ATP")
     open(ass, "w").write(lay(head + "\n".join(ev) + "\n"))
@@ -215,10 +219,15 @@ def audio(total):
     step = np.zeros(int(0.12 * SR)); tt = np.arange(len(step)) / SR
     step = (np.sin(2 * np.pi * 70 * tt) * np.exp(-tt * 40) + bandnoise(0.12, 1500, 6000) * 0.25 * np.exp(-tt * 60))
     gait = dict(intro=0.72, muscles=0.72, brain=0.72, diaphragm=0.72, heart=0.72, buffer=0.56, lactate=0.72, trained=0.76)
+    runs = {k: (S[k]["start"], S[k]["end"]) for k in gait if k in S}
+    if IMG:   # footsteps only while a running image is on screen
+        RUN_IMG = {("muscles", 0): 0.72, ("buffer", 0): 0.5, ("trained", 0): 0.8}
+        gait = {}; runs = {}
+        for x in IMSP:
+            if (x["shot"], x["i"]) in RUN_IMG:
+                k = f'{x["shot"]}{x["i"]}'; gait[k] = RUN_IMG[(x["shot"], x["i"])]; runs[k] = (x["t0"], x["t1"])
     for k, P in gait.items():
-        if k not in S:
-            continue
-        a_, b_ = S[k]["start"], S[k]["end"]
+        a_, b_ = runs[k]
         if k == "brain": a_ = sh("brain", 0.45)
         j = int(np.ceil(a_ / (P / 2)))
         while j * P / 2 < b_:
@@ -254,7 +263,7 @@ def audio(total):
 
 def main():
     total = TL["total"]
-    cat = shot_clips()
+    cat = os.path.join(WORK, "concat.mp4") if IMG else shot_clips()   # image mode: story/animate.py made it
     ass = captions()
     mix = audio(total)
     final = os.path.join(OUT, "breathing_short.mp4")

@@ -34,6 +34,26 @@ LINES = [
     ("after",     "Even after you stop, you keep panting while your body recovers."),
     ("trained",   "Train regularly, and your heart and muscles adapt, so the same pace feels easier."),
 ]
+# Hindi version: LANG_CODE=hi python3 voice.py (voice hm_omega, speed 1.25).
+LINES_HI = [
+    ("intro",     "दौड़ते समय हमारी साँस इतनी तेज़ क्यों हो जाती है?"),
+    ("muscles",   "हर कदम के साथ, टांगों की मांसपेशियाँ अपनी ऊर्जा, यानी ए टी पी, बहुत तेज़ी से खर्च करती हैं।"),
+    ("mito",      "इसे दोबारा बनाने के लिए, माइटोकॉन्ड्रिया ज़्यादा ऑक्सीजन लेते हैं, और ज़्यादा कार्बन डाइऑक्साइड छोड़ते हैं।"),
+    ("brain",     "लेकिन दिमाग इसके जमा होने का इंतज़ार नहीं करता। पहले ही कदम से वह साँस तेज़ कर देता है,"),
+    ("diaphragm", "और डायाफ्राम को ज़ोर से नीचे खींचता है, ताकि साँसें गहरी और तेज़ हों।"),
+    ("alveoli",   "फेफड़ों में ऑक्सीजन खून में जाती है, और कार्बन डाइऑक्साइड बाहर निकल जाती है।"),
+    ("heart",     "दिल भी तेज़ धड़कता है, ताकि यह सब मांसपेशियों तक पहुँचे।"),
+    ("sprint",    "तेज़ स्प्रिंट करने पर, मांसपेशियों में एसिड बढ़ने लगता है।"),
+    ("buffer",    "खून का बाइकार्बोनेट इसे संभालता है, जिससे और कार्बन डाइऑक्साइड बनती है, और आप हाँफने लगते हैं।"),
+    ("lactate",   "और हाँ, लैक्टिक एसिड विलेन नहीं है। लैक्टेट तो दिल और मांसपेशियों के लिए ईंधन है।"),
+    ("after",     "रुकने के बाद भी आप हाँफते रहते हैं, क्योंकि शरीर रिकवरी कर रहा होता है।"),
+    ("trained",   "नियमित ट्रेनिंग से दिल और मांसपेशियाँ मज़बूत होती हैं, और वही रफ़्तार आसान लगने लगती है।"),
+]
+LANG = os.environ.get("LANG_CODE", "en")
+if LANG == "hi":
+    LINES = LINES_HI
+    VOICE = os.environ.get("VOICE", "hm_omega")
+    SPEED = float(os.environ.get("SPEED", "1.25"))
 GAP = 0.12  # silence between lines (s); shots cut on the line boundaries
 
 
@@ -48,7 +68,7 @@ def chunks(text, n=3):
     for i, w in enumerate(words):
         cur.append(w)
         nxt = words[i + 1] if i + 1 < len(words) else ""
-        if re.search(r"[,.?!]$", w) or (len(cur) >= n and not re.search(r"[,.?!]$", nxt)) or len(cur) > n:
+        if re.search(r"[,.?!।]$", w) or (len(cur) >= n and not re.search(r"[,.?!।]$", nxt)) or len(cur) > n:
             out.append(" ".join(cur)); cur = []
     if cur:
         if out and len(cur) == 1:
@@ -59,7 +79,7 @@ def chunks(text, n=3):
 
 
 def weight(s):
-    return len(re.sub(r"[^a-z]", "", s.lower())) + 3 * len(re.findall(r"[,.?!]", s))
+    return len(re.sub(r"[\W\d_]", "", s.lower())) + 3 * len(re.findall(r"[,.?!।]", s))
 
 
 def main():
@@ -67,7 +87,7 @@ def main():
     k = Kokoro(os.path.join(DATA, "kokoro.onnx"), os.path.join(DATA, "voices.bin"))
     pieces = []
     for sid, text in LINES:
-        s, sr = k.create(text, voice=VOICE, speed=SPEED, lang="en-us")
+        s, sr = k.create(text, voice=VOICE, speed=SPEED, lang="hi" if LANG == "hi" else "en-us")
         assert sr == SR
         pieces.append(trim(s.astype(np.float32)))
     t = LEAD

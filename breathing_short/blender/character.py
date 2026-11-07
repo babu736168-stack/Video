@@ -649,6 +649,36 @@ def build_character(prefix=""):
         else:
             v.co += v.normal * 0.006 * cloth[i]
 
+    # shoes: a smooth convex shell around each foot (trainer shape), white upper + dark sole
+    SHOES_OBJ = []
+    for side, sgn in (("l", 1 if J["l-ankle"].x > 0 else -1), ("r", -1 if J["l-ankle"].x > 0 else 1)):
+        pts = [me.vertices[i].co.copy() for i, mi in enumerate(vmat) if mi == 3 and me.vertices[i].co.x * sgn > 0]
+        if len(pts) < 10:
+            continue
+        cen = sum(pts, Vector()) / len(pts)
+        bm = bmesh.new()
+        for q in pts:
+            bm.verts.new(cen + (q - cen) * Vector((1.08, 1.05, 1.1)))
+        bmesh.ops.convex_hull(bm, input=bm.verts[:])
+        sm = bpy.data.meshes.new(f"shoe_{side}"); bm.to_mesh(sm); bm.free()
+        so = bpy.data.objects.new(f"shoe_{side}", sm); bpy.context.collection.objects.link(so)
+        for poly in sm.polygons:
+            poly.use_smooth = True
+        so.modifiers.new("sub", "SUBSURF").levels = 2
+        sole_z = min(q.z for q in pts) + 0.016
+        smat = _nodes(f"shoe_mat_{side}")
+        m_, nt_, out_ = smat
+        pb = nt_.nodes.new("ShaderNodeBsdfPrincipled"); pb.inputs["Roughness"].default_value = 0.5
+        tc = nt_.nodes.new("ShaderNodeTexCoord"); sp = nt_.nodes.new("ShaderNodeSeparateXYZ")
+        nt_.links.new(tc.outputs["Object"], sp.inputs[0])
+        lt = nt_.nodes.new("ShaderNodeMath"); lt.operation = "LESS_THAN"; lt.inputs[1].default_value = sole_z
+        nt_.links.new(sp.outputs["Z"], lt.inputs[0])
+        mx = nt_.nodes.new("ShaderNodeMix"); mx.data_type = "RGBA"
+        mx.inputs[6].default_value = (*SHOES, 1); mx.inputs[7].default_value = (0.03, 0.03, 0.035, 1)
+        nt_.links.new(lt.outputs[0], mx.inputs["Factor"]); nt_.links.new(mx.outputs[2], pb.inputs["Base Color"])
+        nt_.links.new(pb.outputs["BSDF"], out_.inputs["Surface"])
+        sm.materials.append(xray_wrap(m_))
+        objs[f"shoe_{side}"] = so; SHOES_OBJ.append(so)
     # --- hair: a cap cut from the scalp + short Cycles hair strands
     hair = make_hair(body, prefix)
     # --- eyes, teeth, tongue
@@ -738,7 +768,7 @@ def build_character(prefix=""):
     # rigid parts follow bones
     for k, bn in (("helper-l-eye", "head"), ("helper-r-eye", "head"), ("helper-upper-teeth", "head"),
                   ("hair", "head"), ("helper-lower-teeth", "jaw"), ("helper-tongue", "jaw"),
-                  ("brow1", "head"), ("brow-1", "head")):
+                  ("brow1", "head"), ("brow-1", "head")) + tuple((k, k.replace("shoe_", "") + "_ft") for k in ("shoe_l", "shoe_r") if k in objs):
         o = objs[k]; mw = o.matrix_world.copy()
         o.parent = rig; o.parent_type = "BONE"; o.parent_bone = bn
         o.matrix_world = mw

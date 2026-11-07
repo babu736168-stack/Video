@@ -1006,7 +1006,7 @@ def s_trained(u, t, T):
 def s_handtest(u, t, T):
     run(T, "jog")
     bpy.context.view_layer.update()
-    h = rig.matrix_world @ rig.pose.bones["l_hand"].tail
+    h = rig.matrix_world @ rig.pose.bones[os.environ.get("TESTBONE", "l_hand")].tail
     look(h + Vector((0.25, -0.45, 0.1)), h, 50, 4.0)
 
 

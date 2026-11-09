@@ -1,0 +1,47 @@
+"""Economics Class 1 - Demand & Supply: 2-minute SAMPLE in layman style (excited coaching voice).
+Sources: NCERT Class 12 Introductory Microeconomics (Ch 2 consumer behaviour & demand: quantity a consumer is willing
+and able to buy at a price; law of demand: price and quantity demanded move in opposite directions, other things
+remaining the same) and Ramesh Singh, Indian Economy (uses demand-supply to explain prices and inflation).
+Real-life fact: tomato retail prices crossed Rs 200/kg in several Indian cities in July 2023.
+"""
+from ds_sample import TOPICS
+
+CHAPTER = dict(num=1, title="Demand & Supply", kicker="ECONOMICS · CLASS 1",
+               hook_en="Same tomato. Same farm.\nWhy ₹20 one month… and ₹200 the next?",
+               hook_hi="वही टमाटर — कभी ₹20, कभी ₹200… क्यों?", outro_icons=("☀️", "🍦"))
+
+LINES = [
+    ("hook", "[scene] अरे दोस्तों! एक बात बताइए — टमाटर कभी बीस रुपये किलो, और कभी दो सौ रुपये किलो! ऐसा क्यों?"),
+    (None, "दो हज़ार तेईस की जुलाई में तो कई शहरों में, टमाटर सच में दो सौ के पार चला गया था!"),
+    (None, "टमाटर वही, खेत वही — फिर ये दाम का खेल खेलता कौन है?"),
+    ("center", "[name] इस खेल का नाम है — डिमांड और सप्लाई!"),
+    ("topics", "और इसकी पहली चाबी है — डिमांड। चलिए, बिल्कुल आसान भाषा में समझते हैं!"),
+
+    ("focus:demand", "[scene] सोचिए, एक छोटा बच्चा खिलौने की दुकान पर खड़ा है। उसे वो रिमोट वाली कार चाहिए!"),
+    ("anim:wish", "लेकिन जेब में? एक रुपया भी नहीं!"),
+    (None, "तो क्या ये डिमांड है?"),
+    (None, "[punch] बिल्कुल नहीं!"),
+    ("pt:Demand = you want it + you have the money + you are ready to spend",
+     "डिमांड का सीधा-सा मतलब — चीज़ चाहिए, पैसे भी हैं, और ख़र्च करने का मन भी है। तीनों एक साथ!"),
+    ("ex:Want it, but ₹0 in the pocket = only a dream, not demand",
+     "सिर्फ़ चाहने से कुछ नहीं होता — वो तो बस सपना है!"),
+    ("pt:In short (NCERT): how much a buyer is willing AND able to buy at a price",
+     "एन सी ई आर टी की बात का निचोड़ भी यही है — किसी दाम पर आप जितना ख़रीदना चाहते हैं, और ख़रीद भी सकते हैं — वही आपकी डिमांड है।"),
+
+    ("focus:law", "[scene] अब चलिए आम वाले ठेले पर! सीज़न का पहला आम — दो सौ रुपये किलो। लोग देखते हैं, और चुपचाप आगे बढ़ जाते हैं।"),
+    ("anim:mango", "कुछ हफ़्ते बाद — वही आम, साठ रुपये किलो! और अब? ठेले पर भीड़ ही भीड़!"),
+    (None, "[name] यही है — लॉ ऑफ़ डिमांड!"),
+    ("pt:Price ↑ → people buy less|Price ↓ → people buy more",
+     "दाम बढ़ा, तो लोग कम ख़रीदते हैं। दाम घटा, तो ज़्यादा। बस इतनी-सी बात है!"),
+    ("pt:One condition: everything else stays the same",
+     "बस एक शर्त — बाक़ी सब कुछ वैसा ही रहे। यानी आपकी सैलरी, आपकी पसंद — सब वही। बदले सिर्फ़ आम का दाम।"),
+    ("anim:demand_curve", "और इसे ग्राफ़ पर बनाएँ, तो बनती है फिसलपट्टी जैसी, नीचे उतरती एक लाइन!"),
+    ("ex:Demand curve = a slide going down: high price, few buyers; low price, many buyers",
+     "[name] इसे कहते हैं — डिमांड कर्व!"),
+
+    ("recap:demand|Want + money + ready to spend", "तो याद रखिए — चाहत, पैसा और मन — यही है डिमांड।"),
+    ("recap:law|Price ↑ → buy less, price ↓ → buy more", "और दाम ऊपर, तो ख़रीद नीचे!"),
+    ("outro:Next: why the whole curve moves",
+     "लेकिन दोस्तों — अगर दाम वही रहे, और फिर भी भीड़ बढ़ जाए, तो? गर्मी में कुल्फ़ी के साथ यही होता है!"),
+    (None, "[punch] वो मज़ेदार कहानी — अगली क्लास में!"),
+]

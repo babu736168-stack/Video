@@ -16,9 +16,12 @@ import soundfile as sf
 HERE = os.getcwd()          # run from the project folder (polity/, econ/ ...)
 sys.path.insert(0, HERE)
 TTS = "/tmp/claude-0/tts"
-VOICE = os.environ.get("VOICE", "hm_omega")
-BASE = 1.5
-SR = 24000
+ENGINE = os.environ.get("ENGINE", "piper")            # piper (clearer Hindi) | kokoro
+VOICE = os.environ.get("VOICE", "pratham" if ENGINE == "piper" else "hm_omega")
+BASE = float(os.environ.get("BASE", "1.3"))
+SR = 22050 if ENGINE == "piper" else 24000
+# excitement per delivery: (pitch lift, intonation spread)
+PITCH = {"🔊": (1.07, 1.25), "🐢": (1.03, 1.15), "🔉": (1.0, 1.05), "": (1.05, 1.2)}
 
 SLOW_START = ("सोचिए", "ध्यान दीजिए", "याद रखिए")
 DRAMA_START = ("लेकिन", "और फिर", "नतीजा", "और नतीजा")
@@ -40,17 +43,17 @@ def style(sent, tags, first):
     if s.startswith(DRAMA_START) or s.startswith("लेकिन…"):
         st["pre"] = 0.6; st["marks"].append("⏸")
     if soft and not first:
-        st.update(speed=1.42, gain=-4.0); st["marks"].append("🔉")
+        st.update(speed=BASE * 0.95, gain=-4.0); st["marks"].append("🔉")
     elif (first and ("scene" in tags or "name" in tags)) or s.startswith(SLOW_START):
-        st.update(speed=1.28, gain=1.0); st["marks"].append("🐢")
+        st.update(speed=BASE * 0.86, gain=1.0); st["marks"].append("🐢")
     elif s.endswith("?") and words <= 5:
-        st.update(speed=1.3, gain=1.0); st["marks"].append("🐢")
+        st.update(speed=BASE * 0.88, gain=1.0); st["marks"].append("🐢")
     elif "punch" in tags or (s.endswith("!") and words <= 9) or words <= 5:
-        st.update(speed=1.3, gain=3.0); st["marks"] += ["🔊", "🐢"]
+        st.update(speed=BASE * 0.88, gain=3.0); st["marks"] += ["🔊", "🐢"]
     elif soft:
-        st.update(speed=1.42, gain=-4.0); st["marks"].append("🔉")
+        st.update(speed=BASE * 0.95, gain=-4.0); st["marks"].append("🔉")
     elif s.endswith("!"):
-        st.update(speed=1.38, gain=2.0); st["marks"].append("🔊")
+        st.update(speed=BASE * 0.95, gain=2.0); st["marks"].append("🔊")
     if s.endswith("?"):
         st["post"] = 0.75; st["marks"].append("⏸")
     return st
@@ -64,15 +67,27 @@ def parse(line):
 def trim(a, thr=0.01):
     idx = np.where(np.abs(a) > thr)[0]
     if not len(idx): return a
-    return a[max(0, idx[0] - 240): idx[-1] + 480]
+    return a[max(0, idx[0] - int(SR * 0.01)): idx[-1] + int(SR * 0.02)]
 
 
 def main():
     mod = sys.argv[1] if len(sys.argv) > 1 else "ch01_script"
     S = importlib.import_module(mod)
     out = os.path.join(HERE, "out", mod); os.makedirs(out, exist_ok=True)
-    from kokoro_onnx import Kokoro
-    k = Kokoro(f"{TTS}/kokoro-v1.0.onnx", f"{TTS}/voices-v1.0.bin")
+    if ENGINE == "piper":
+        from piper_hi import Piper
+        from excite import excite
+        P = Piper(f"{TTS}/vits-piper-hi_IN-{VOICE}-medium/hi_IN-{VOICE}-medium.onnx")
+        def synth(c, spd, marks):
+            a, sr = P(c, speed=spd, noise=0.7, noise_w=0.9)
+            key = "🔊" if "🔊" in marks else "🐢" if "🐢" in marks else "🔉" if "🔉" in marks else ""
+            lift, spread = PITCH[key]
+            return excite(a, sr, lift=lift, spread=spread, bright=0.15) * 0.8
+    else:
+        from kokoro_onnx import Kokoro
+        k = Kokoro(f"{TTS}/kokoro-v1.0.onnx", f"{TTS}/voices-v1.0.bin")
+        def synth(c, spd, marks):
+            return np.asarray(k.create(c, voice=VOICE, speed=spd, lang="hi")[0], np.float32)
     rng = np.random.default_rng(7)
     audio, t, tl = [np.zeros(int(0.6 * SR))], 0.6, []
     prev_ev = None
@@ -89,12 +104,11 @@ def main():
             chunks = [c.strip() for c in sent.split("—")]
             if st["pre"]:
                 audio.append(np.zeros(int(st["pre"] * SR))); t += st["pre"]
-            spd = float(np.clip(st["speed"] * (1 + rng.uniform(-0.04, 0.04)), 1.0, 1.8))
+            spd = float(np.clip(st["speed"] * (1 + rng.uniform(-0.04, 0.04)), 0.9, 1.8))
             g = 10 ** ((st["gain"] + rng.uniform(-0.8, 0.8)) / 20)
             for c_i, c in enumerate(chunks):
                 if not c: continue
-                a, sr = k.create(c, voice=VOICE, speed=spd, lang="hi")
-                a = trim(np.asarray(a, np.float32)) * g
+                a = trim(synth(c, spd, st["marks"])) * g
                 audio.append(a); t += len(a) / SR
                 if c_i + 1 < len(chunks):
                     b = 0.22 + rng.uniform(-0.04, 0.05)

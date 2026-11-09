@@ -511,7 +511,8 @@ class Film:
         # salt vs smartphone teaser
         b = ease_out((t - self.t_outro - 2) / 0.6)
         if b > 0:
-            put(im, "🧂", (330, 1008), 90, b); put(im, "📱", (1590, 1008), 90, b)
+            i1, i2 = self.S.CHAPTER.get("outro_icons", ("🧂", "📱"))
+            put(im, i1, (330, 1008), 90, b); put(im, i2, (1590, 1008), 90, b)
         return im
 
     def zoom(self, mp, board, p, u):

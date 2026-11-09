@@ -16,9 +16,9 @@ import soundfile as sf
 HERE = os.getcwd()          # run from the project folder (polity/, econ/ ...)
 sys.path.insert(0, HERE)
 TTS = "/tmp/claude-0/tts"
-ENGINE = os.environ.get("ENGINE", "kokoro")           # kokoro (user-chosen hm_psi) | piper
-VOICE = os.environ.get("VOICE", "pratham" if ENGINE == "piper" else "hm_psi")
-BASE = float(os.environ.get("BASE", "1.3"))
+ENGINE = os.environ.get("ENGINE", "kokoro")           # kokoro (user-chosen hf_alpha, 1.4x) | piper
+VOICE = os.environ.get("VOICE", "pratham" if ENGINE == "piper" else "hf_alpha")
+BASE = float(os.environ.get("BASE", "1.4"))
 SR = 22050 if ENGINE == "piper" else 24000
 # excitement per delivery: (pitch lift, intonation spread)
 PITCH = {"🔊": (1.07, 1.25), "🐢": (1.03, 1.15), "🔉": (1.0, 1.05), "": (1.05, 1.2)}

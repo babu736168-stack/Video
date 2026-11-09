@@ -498,40 +498,21 @@ def still(mod, times, dst):
 
 
 def audio_mix(mod, total, out):
-    """voice + soft pad + whoosh on topic changes + tick on each point."""
+    """Clean voice only: low rumble filtered out, plus a soft tick when a point appears.
+    (No music bed or whooshes: the ducked drone under the voice was heard as a vibrating background sound.)"""
     import soundfile as sf
-    from scipy.signal import resample_poly, butter, sosfilt
+    from scipy.signal import resample_poly, butter, sosfiltfilt
     SR = 48000
     v, sr = sf.read(os.path.join(HERE, "out", mod, "voice.wav"))
     v = resample_poly(v, SR, sr)
+    v = sosfiltfilt(butter(4, 75, "high", fs=SR, output="sos"), v)
     n = int(total * SR) + SR; mix = np.zeros(n); mix[:len(v)] += v[:n]
     TL = json.load(open(os.path.join(HERE, "out", mod, "timeline.json")))
-    t = np.arange(n) / SR
-    hz = lambda m: 440 * 2 ** ((m - 69) / 12)
-    chords = [(45, 52, 57, 60, 64), (41, 48, 57, 60, 65), (43, 50, 55, 59, 62), (40, 47, 55, 59, 64)]
-    pad = np.zeros(n); L = 8.0
-    for k in range(int(total / L) + 1):
-        a = int(k * L * SR); b = min(n, int((k + 1) * L * SR + 2 * SR))
-        if a >= n: break
-        tt = np.arange(b - a) / SR; e = np.minimum(1, np.minimum(tt / 2.5, (tt[-1] - tt) / 2.5 + 1e-9))
-        for m in chords[k % 4]:
-            pad[a:b] += np.sin(2 * np.pi * hz(m) * tt) * e * 0.012
-    rng = np.random.default_rng(1)
     for l in TL["lines"]:
-        ev = l["ev"] or ""
-        i = int(l["start"] * SR)
-        if ev.startswith(("focus", "center", "recap", "outro")):
-            x = rng.normal(0, 1, int(1.0 * SR)); y = sosfilt(butter(2, [300, 3000], "band", fs=SR, output="sos"), x)
-            y *= np.sin(np.linspace(0, np.pi, len(y))) ** 2 * 0.06
-            j = max(0, i - int(0.5 * SR)); mix[j:j + len(y)] += y[:n - j]
-        if ev.startswith(("pt:", "ex:")):
-            j = i + int(0.45 * SR); tt = np.arange(int(0.12 * SR)) / SR
-            y = np.sin(2 * np.pi * 1320 * tt) * np.exp(-tt * 45) * 0.05
-            mix[j:j + len(y)] += y[:n - j]
-    from scipy.ndimage import uniform_filter1d
-    lvl = uniform_filter1d(np.abs(v[:n] if len(v) >= n else np.pad(v, (0, n - len(v)))), int(0.4 * SR))
-    duck = 1 - 0.5 * np.clip(lvl / (lvl.max() * 0.25), 0, 1)
-    mix += pad * duck
+        if (l["ev"] or "").startswith(("pt:", "ex:")):
+            i = int(l["start"] * SR) + int(0.45 * SR); tt = np.arange(int(0.08 * SR)) / SR
+            y = np.sin(2 * np.pi * 1320 * tt) * np.exp(-tt * 60) * 0.025
+            mix[i:i + len(y)] += y[:max(0, n - i)]
     mix /= np.abs(mix).max() / 0.9
     sf.write(out, mix.astype(np.float32), SR)
 

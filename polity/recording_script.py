@@ -6,7 +6,8 @@ Marks come from the same rules the synthetic voice uses (voice.py), so both deli
 import os, sys, json, importlib
 from bengali import to_bengali
 
-HERE = os.path.dirname(os.path.abspath(__file__))
+HERE = os.getcwd()          # run from the project folder (polity/, econ/ ...)
+sys.path.insert(0, HERE)
 
 LEGEND = """## How to read the marks
 

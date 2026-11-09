@@ -16,8 +16,8 @@ import soundfile as sf
 HERE = os.getcwd()          # run from the project folder (polity/, econ/ ...)
 sys.path.insert(0, HERE)
 TTS = "/tmp/claude-0/tts"
-ENGINE = os.environ.get("ENGINE", "piper")            # piper (clearer Hindi) | kokoro
-VOICE = os.environ.get("VOICE", "pratham" if ENGINE == "piper" else "hm_omega")
+ENGINE = os.environ.get("ENGINE", "kokoro")           # kokoro (user-chosen hm_psi) | piper
+VOICE = os.environ.get("VOICE", "pratham" if ENGINE == "piper" else "hm_psi")
 BASE = float(os.environ.get("BASE", "1.3"))
 SR = 22050 if ENGINE == "piper" else 24000
 # excitement per delivery: (pitch lift, intonation spread)

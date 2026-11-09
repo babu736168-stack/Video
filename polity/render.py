@@ -394,7 +394,7 @@ class Film:
         rows = [(te, e.split(":", 1)[1]) for te, e in self.ev if e.startswith("recap:")]
         y = 300
         for te, body in rows:
-            tid, _, txt = body.partition("|")
+            tid, _, body_t = body.partition("|")
             u = ease_out((t - te) / 0.5)
             if u <= 0: continue
             tp = self.topic[tid]; acc = SIDE[tp["side"]]
@@ -402,7 +402,7 @@ class Film:
             d.rounded_rectangle((x, y, x + 200, y + 92), radius=46, fill=acc + (int(255 * u),))
             txt(im, (x + 100, y + 46), tp["year"], F("InterDisplay-Black", 46), (15, 15, 25), alpha=u, anchor="mm")
             txt(im, (x + 240, y + 6), tp["name"], F("InterDisplay-Bold", 40), WHITE, alpha=u)
-            for i, ln in enumerate(wrap(txt.split("–", 1)[-1].strip(), F("Inter-Medium", 28), 1150)):
+            for i, ln in enumerate(wrap(body_t.split("–", 1)[-1].strip(), F("Inter-Medium", 28), 1150)):
                 txt(im, (x + 240, y + 58 + i * 36), ln, F("Inter-Medium", 28), DIM, alpha=u)
             y += 180
         return im
@@ -413,9 +413,9 @@ class Film:
         im = self.draw_map(t, hl=None, done=done, pulse=nxt)
         d = ImageDraw.Draw(im, "RGBA")
         a = ease_out((t - self.t_outro - 0.5) / 0.6)
-        txt = next(e for _, e in self.ev if e.startswith("outro:")).split(":", 1)[1]
+        otext = next(e for _, e in self.ev if e.startswith("outro:")).split(":", 1)[1]
         d.rectangle((0, 920, W, 1080), fill=(5, 8, 18, int(220 * a)))
-        glow_text(im, (960, 1000), txt, F("InterDisplay-Black", 54), GOLD, glow=GOLD, anchor="mm", alpha=a, radius=10)
+        glow_text(im, (960, 1000), otext, F("InterDisplay-Black", 54), GOLD, glow=GOLD, anchor="mm", alpha=a, radius=10)
         return im
 
     # ---- frame dispatcher

@@ -38,13 +38,17 @@ def screen_of(ev, S, state):
         s = f"Mind map: “Chapter {S.CHAPTER['num']} · {S.CHAPTER['title']}” appears in the centre"
     elif kind == "hub":
         h = S.HUBS[body]; s = f"Mind map: “{h['title']} {h['years']}” flies out of the centre"
+    elif kind == "topics":
+        s = "Mind map: the topics fly out of the centre one by one"
+    elif kind == "anim":
+        s = f"Board ({state.get('board', '')}): animation “{body.replace('_', ' ')}” starts on the stage"
     elif kind == "acts":
         s = "Mind map: all acts of the chapter fly out one by one"
     elif kind == "focus":
-        if body in S.HUBS:
+        if body in getattr(S, "HUBS", {}):
             name, lab = S.HUBS[body]["title"], S.HUBS[body]["label"]
         else:
-            tp = next(t for t in S.TOPICS if t["id"] == body); name, lab = f"{tp['year']} {tp['name']}", tp["label"]
+            tp = next(t for t in S.TOPICS if t["id"] == body); name, lab = f"{tp.get('year', '')} {tp['name']}".strip(), tp["label"]
         s = f"Topic highlighted on the map with label “{lab.upper()}”, zoom into the board: {name}"
         state["board"] = name
     elif kind == "pt":
@@ -58,7 +62,7 @@ def screen_of(ev, S, state):
     else:
         s = ev
     state["screen"] = s.split(":")[0] if kind in ("pt", "ex") else s
-    if kind in ("pt", "ex"): state["screen"] = f"Board ({state.get('board', '')})"
+    if kind in ("pt", "ex", "anim"): state["screen"] = f"Board ({state.get('board', '')})"
     return s
 
 

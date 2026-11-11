@@ -127,15 +127,27 @@ def main():
         import base64, io, urllib.request
         MODEL = os.environ.get("SARVAM_MODEL", "bulbul:v4-flash")
 
+        import hashlib, time, urllib.error
+        CACHE = os.path.join(TTS, "sarvam_cache"); os.makedirs(CACHE, exist_ok=True)
+
         def synth(c, spd, marks):
             body = dict(text=c, language_code="hi-IN", model=MODEL, speaker=VOICE, pace=round(spd, 2),
                         speech_sample_rate=SR, output_audio_codec="wav")
-            req = urllib.request.Request("https://api.sarvam.ai/text-to-speech", data=json.dumps(body).encode(),
-                                         headers={"Content-Type": "application/json",
-                                                  "api-subscription-key": os.environ.get("SARVAM_API_KEY", "proxy-injected")})
-            with urllib.request.urlopen(req, timeout=120) as r:
-                wav = base64.b64decode("".join(json.load(r)["audios"]))
-            a, sr = sf.read(io.BytesIO(wav), dtype="float32")
+            key = os.path.join(CACHE, hashlib.sha1(json.dumps(body, sort_keys=True).encode()).hexdigest() + ".wav")
+            if not os.path.exists(key):
+                for attempt in range(8):          # the API rate-limits (429): wait and retry
+                    req = urllib.request.Request("https://api.sarvam.ai/text-to-speech", data=json.dumps(body).encode(),
+                                                 headers={"Content-Type": "application/json",
+                                                          "api-subscription-key": os.environ.get("SARVAM_API_KEY", "proxy-injected")})
+                    try:
+                        with urllib.request.urlopen(req, timeout=120) as r:
+                            wav = base64.b64decode("".join(json.load(r)["audios"])); break
+                    except urllib.error.HTTPError as e:
+                        if e.code != 429 or attempt == 7: raise
+                        time.sleep(min(60, 5 * 2 ** attempt))
+                open(key, "wb").write(wav)
+                time.sleep(float(os.environ.get("SARVAM_GAP", "1.0")))
+            a, sr = sf.read(key, dtype="float32")
             return a if a.ndim == 1 else a.mean(1)
     rng = np.random.default_rng(7)
     audio, t, tl = [np.zeros(int(0.6 * SR))], 0.6, []

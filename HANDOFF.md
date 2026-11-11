@@ -37,7 +37,7 @@ Paste this whole file into a new Claude Code chat, then say what to do next
 - Maps or images can be added; I can provide them.
 
 ## 4. Voice (latest decisions, in order)
-- Engine: **Kokoro**, voice **`hf_alpha`**, **base speed 1.4×**. This was matched to my sample file "Layman style voice sample 1.4x.mp3" (median pitch 219 Hz vs hf_alpha's 206 Hz, the closest of all 54 voices).
+- **Now: Sarvam `sanchita_hi_edtech` at 1.0× (see section 6).** Before that: Kokoro, voice `hf_alpha`, base speed 1.4×. This was matched to my sample file "Layman style voice sample 1.4x.mp3" (median pitch 219 Hz vs hf_alpha's 206 Hz, the closest of all 54 voices).
 - Per-sentence variation around 1.4×:
   - slower and firmer for scene openers, सोचिए / ध्यान दीजिए / याद रखिए, and topic names;
   - louder for punch lines and exclamations;
@@ -84,10 +84,11 @@ Paste this whole file into a new Claude Code chat, then say what to do next
    Fonts: `/usr/local/share/fonts/noto/NotoSansDevanagari-{Black,Bold,SemiBold,Medium,Regular}.ttf`
    from raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansDevanagari/hinted/ttf/.
 
-**Sarvam voice (user wants it):** `ENGINE=sarvam python3 ../polity/voice.py ds_2min`
-(defaults: `VOICE=ritu_hi_edtech`, `SARVAM_MODEL=bulbul:v4-flash`, `BASE=1.0`; pace range 0.5–2.0).
-The key saved in the cloud environment for api.sarvam.ai was rejected (403 invalid_api_key_error) on 2026-11-11;
-a new key from indus.sarvam.ai/key-management is needed.
+**Voice is now Sarvam (chosen 2026-11-11): Voice 4 = `sanchita_hi_edtech`, model `bulbul:v4-flash`, pace 1.0×.**
+`ENGINE=sarvam VOICE=sanchita_hi_edtech BASE=1.0 python3 ../polity/voice.py ds_2min`
+The API key is saved in the cloud environment's network secrets for api.sarvam.ai (the proxy adds it).
+voice.py retries on 429 (rate limit) and caches each clip in /tmp/claude-0/tts/sarvam_cache.
+Whisper small is not a reliable judge of ट/ड for any voice (it mishears Sarvam's native voices too); NCERT is heard correctly.
 
 ## 7. What exists (repo `babu736168-stack/Video`, branch `ccr-a809289b-ssj04s`, all pushed)
 - `polity/`

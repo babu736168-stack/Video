@@ -35,13 +35,13 @@ The course climbs in 5 levels. Each level uses the one before it, so a beginner 
 ## 3. Every class follows the same pattern
 
 1. **Hook question:** a short scene with a problem, people and tension.
-2. **"आज की क्लास में…":** what today's class covers, said with excitement as a promise, not "we will discuss". For example: "आज की क्लास में आप जानेंगे — डिमांड असल में क्या है, दाम बढ़ने पर लोग कम क्यों ख़रीदते हैं, और ये बात एक ग्राफ़ पर कैसे दिखती है।" The same 3–5 points appear on screen as a list.
+2. **"आज की क्लास में…":** what today's class covers, said with excitement as a promise, not "we will discuss". For example: "आज की क्लास में आप जानेंगे — डिमांड असल में क्या है, दाम बढ़ने पर लोग कम क्यों ख़रीदते हैं, और ये बात एक ग्राफ़ पर कैसे दिखती है।" The same 3–5 points appear on screen as a list ("Aaj ki class mein…").
 3. **Mind map:** the chapter name in the centre, topics flying out.
 4. **Each topic:** scene → why it came → what it does → 💡 example → animation or graph → hook into the next topic.
 5. **Recap:** the same points as in step 2, now ticked ✓.
 6. **Next class teaser.**
 
-The on-screen text always shows the same words that are spoken, in Devanagari.
+The on-screen text always shows the same words that are spoken, in **Hinglish written in English letters** (for example "Daam badha, to log kam khareedte hain."). English terms keep their normal spelling (Demand, GDP, NCERT).
 
 ---
 
@@ -55,11 +55,10 @@ A new automatic check, tested today:
 4. A flagged line is made again: a new take, slightly slower, or with a small spelling help for the voice only. Then it is checked again.
 5. If a line still fails after that, I list it for you before sending the video.
 
-**Today's test on the 2-minute sample:** 21 of 23 lines matched perfectly. It caught two real problems:
+**Test on the 2-minute sample:** the first run matched 21 of 23 lines and caught two real problems (both fixed with a retake, so now all 23 of 23 pass):
 - "भीड़ ही भीड़" was spoken as "भीड़ी भीड़";
 - "देखते" sounded like "बेचते".
 
-These lines will be re-made before the final video.
 
 Writing rules that help pronunciation:
 - Numbers are written as spoken ("दो हज़ार तेईस").

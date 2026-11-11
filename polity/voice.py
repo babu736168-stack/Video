@@ -35,6 +35,7 @@ HARD = ("डिमांड", "टमाटर", "ख़रीद", "बढ़",
 HARD_SLOW = 0.9
 # Letter-by-letter abbreviations: each letter is its own small clip with a short gap.
 ACRONYMS = ("एन सी ई आर टी",)
+TAKE = [0]
 # excitement per delivery: (pitch lift, intonation spread)
 PITCH = {"🔊": (1.07, 1.25), "🐢": (1.03, 1.15), "🔉": (1.0, 1.05), "": (1.05, 1.2)}
 
@@ -133,7 +134,8 @@ def main():
         def synth(c, spd, marks):
             body = dict(text=c, language_code="hi-IN", model=MODEL, speaker=VOICE, pace=round(spd, 2),
                         speech_sample_rate=SR, output_audio_codec="wav")
-            key = os.path.join(CACHE, hashlib.sha1(json.dumps(body, sort_keys=True).encode()).hexdigest() + ".wav")
+            tag = dict(body, take=TAKE[0]) if TAKE[0] else body      # a retake = a fresh recording of the same text
+            key = os.path.join(CACHE, hashlib.sha1(json.dumps(tag, sort_keys=True).encode()).hexdigest() + ".wav")
             if not os.path.exists(key):
                 for attempt in range(8):          # the API rate-limits (429): wait and retry
                     req = urllib.request.Request("https://api.sarvam.ai/text-to-speech", data=json.dumps(body).encode(),
@@ -152,7 +154,11 @@ def main():
     rng = np.random.default_rng(7)
     audio, t, tl = [np.zeros(int(0.6 * SR))], 0.6, []
     prev_ev = None
+    # out/<script>/retakes.json: {"line number": take number} for lines the word check flagged
+    rt_path = os.path.join(out, "retakes.json")
+    retakes = json.load(open(rt_path)) if os.path.exists(rt_path) else {}
     for i, (ev, line) in enumerate(S.LINES):
+        TAKE[0] = int(retakes.get(str(i), 0))
         tags, text = parse(line)
         # longer breath at a new screen section
         gap = 0.0

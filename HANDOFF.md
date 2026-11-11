@@ -78,9 +78,10 @@ Paste this whole file into a new Claude Code chat, then say what to do next
    Whisper check after the fix: पहली ✓, मतलब ✓, ख़रीदते "रहीते" → "खरीते", डिमांड "दिमान" → "दिमान्द",
    NCERT letters now separate. Still weak: hf_alpha makes ट/ड sound like त/द (टमाटर → "तमाटर"), a limit of the
    voice itself; corrected sounds did not help. Sarvam (below) is the likely real fix.
-2. **Screen text now matches speech.** Points, 💡 examples, recap, outro, hook and the stage labels in
+2. **Screen text now matches speech, in Hinglish written in English letters** (user's choice, 2026-11-11:
+   "Daam badha, to log kam khareedte hain."; English terms keep English spelling). Points, 💡 examples, recap, outro, hook and stage labels in
    `econ/ds_2min.py` / `render_econ.py` are the spoken Hinglish phrases in Devanagari.
-   `polity/render.py` swaps to Noto Sans Devanagari (same size, similar weight) whenever text is Hindi.
+   (An earlier version used Devanagari; the user then asked for English letters.) `polity/render.py` still swaps to Noto Sans Devanagari (same size, similar weight) whenever text is Hindi.
    Fonts: `/usr/local/share/fonts/noto/NotoSansDevanagari-{Black,Bold,SemiBold,Medium,Regular}.ttf`
    from raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansDevanagari/hinted/ttf/.
 
@@ -88,6 +89,8 @@ Paste this whole file into a new Claude Code chat, then say what to do next
 `ENGINE=sarvam VOICE=sanchita_hi_edtech BASE=1.0 python3 ../polity/voice.py ds_2min`
 The API key is saved in the cloud environment's network secrets for api.sarvam.ai (the proxy adds it).
 voice.py retries on 429 (rate limit) and caches each clip in /tmp/claude-0/tts/sarvam_cache.
+**Word check:** `python3 ../polity/word_check.py ds_2min` (Sarvam speech-to-text, verbatim) must report every line with no missing word.
+For a flagged line, put {"line no.": take no.} in out/<script>/retakes.json and re-run voice.py (fresh recording). ds_2min: 23/23 pass.
 Whisper small is not a reliable judge of ट/ड for any voice (it mishears Sarvam's native voices too); NCERT is heard correctly.
 
 ## 7. What exists (repo `babu736168-stack/Video`, branch `ccr-a809289b-ssj04s`, all pushed)

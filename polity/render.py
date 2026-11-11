@@ -405,7 +405,7 @@ class Film:
             k += 2
         a = ease_out((t - 6.0) / 0.8)
         if a > 0:
-            txt(im, (960, 640), C["hook_hi"], F("deva", 48), DIM, alpha=a, anchor="mm")
+            txt(im, (960, 640), C["hook_hi"], F("Inter-SemiBold", 48), DIM, alpha=a, anchor="mm")
         q = ease_out((t - 9.5) / 0.6)
         if q > 0:
             txt(im, (960, 790), "?", F("InterDisplay-Black", 120), GOLD, alpha=q, anchor="mm")

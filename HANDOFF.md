@@ -99,7 +99,10 @@ Whisper small is not a reliable judge of ट/ड for any voice (it mishears Sarv
   the voice, finds each word's time (pauses + syllable share inside each spoken chunk) and stores `kw` in timeline.json.
 - `econ/render_course.py`: hook (key words big), "AAJ KI CLASS MEIN" agenda (event `agenda`), map, boards with
   key-word chips + emoji stage, recap ticks (event `recap`, optional CHAPTER recap_title), outro.
-- Course plan: `econ/COURSE_PLAN.md` (52 classes, NCERT 9-12 then Ramesh Singh; 4 questions to the user still open).
+- Course plan: `econ/COURSE_PLAN.md`, now in **Ramesh Singh chapter order (Ch 1 → 22, 6 parts, 51 classes)**, NCERT
+  foundation classes first inside each chapter (user's decision, 2026-11-11). Ramesh Singh edition still to confirm.
+- `econ00b_roadmap.py` -> "Econ00b - Syllabus Roadmap.mp4" (3:19): the full syllabus mind map, chapter by chapter.
+  Trailer + roadmap + Palampur class are the 3 'interest' videos.
 - Samples made: `econ00_trailer.py` -> "Econ00 - Course Trailer (sample).mp4";
   `econ01_sample.py` -> "Econ01 - The Story of Village Palampur (2-min sample).mp4". Both pass word_check.
   Run: `ENGINE=sarvam VOICE=sanchita_hi_edtech BASE=1.0 python3 ../polity/voice.py econ01_sample`,

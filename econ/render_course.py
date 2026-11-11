@@ -96,8 +96,8 @@ class Course(Film):
             pre = ev.split(":", 1)[1] if ev.startswith(("pt:", "ex:")) else ""
             items, x = [], X0
             if pre:
-                f = F("Inter-SemiBold", 30)
-                items.append(dict(kind="pre", text=pre, x=x, y=y, t=l["start"], f=f)); y += 46
+                f = F("InterDisplay-Bold", 34)
+                items.append(dict(kind="pre", text=pre, x=x, y=y, t=l["start"], f=f)); y += 52
             for k in ks:
                 f = F("InterDisplay-Bold", fs)
                 ew = E.emo(k["emoji"], 40).width + 12 if k["emoji"] else 0
@@ -144,7 +144,7 @@ class Course(Film):
                 if a <= 0: continue
                 y = it["y"] - it["page_dy"]
                 if it["kind"] == "pre":
-                    txt(im, (it["x"], y), it["text"], it["f"], DIM, alpha=a); continue
+                    txt(im, (it["x"], y), it["text"], it["f"], GOLD, alpha=a); continue
                 fill, edge = CHIP[it["kind"]]
                 sc = 1 + 0.25 * max(0, 1 - (t - it["t"]) / 0.3)
                 x0, w = it["x"], it["w"]

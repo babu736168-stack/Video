@@ -1,150 +1,80 @@
-# Economics course plan: basic to advanced (draft for your approval)
+# Economics course plan: the full syllabus, chapter by chapter
 
-**Sources:** NCERT (Class 9, 10, 11, 12) and Ramesh Singh, *Indian Economy*.
+**Order:** Ramesh Singh, *Indian Economy*, Chapter 1 → Chapter 22.
+**Inside every chapter:** first the easy **NCERT foundation** classes (Class 9–12), then the **Ramesh Singh** class that goes deeper.
 **Style:** Hinglish, the friendly coaching teacher ("दोस्तों"), one connected story, everyday 💡 examples.
-**Voice:** Sarvam, Voice 4 (Sanchita), speed 1.0.
+**Voice:** Sarvam, Voice 4 (Sanchita), speed 1.0. Every line passes the word-by-word check.
+**Screen:** no subtitles. Only the key words appear, each at the moment it is spoken, in English letters, with a matching emoji. The pictures and the map follow the voice.
 
----
+## The 3 "interest" videos (watched first)
+| Video | What it does |
+|---|---|
+| **Econ00 – Course Trailer** | Hook questions (tomato, petrol, bank), the promise: zero to advanced. |
+| **Econ00b – Syllabus Roadmap** | The full mind map: 6 parts → 22 chapters → every class, one by one. |
+| **Econ01 – The Story of Village Palampur** | The first real class (Chapter 1). |
 
-## 1. How the course is built
+## Every class follows the same pattern
+1. Hook question (a short scene).
+2. **"AAJ KI CLASS MEIN"**: today's 3–5 topics, numbered, appearing as spoken.
+3. Mind map → each topic: scene → why → what → 💡 example → animation → hook into the next topic.
+4. Recap (the same items, ticked ✓) → teaser for the next class.
 
-The course climbs in 5 levels. Each level uses the one before it, so a beginner never gets lost.
+## The syllabus: 6 parts, 22 chapters, 51 classes
+NCERT books: **9** = Class 9 Economics · **10** = Class 10 *Understanding Economic Development* ·
+**11** = Class 11 *Indian Economic Development* · **12 Mi / 12 Ma** = Class 12 *Introductory Micro / Macroeconomics*.
 
-| Level | What you learn | Source | Classes |
-|---|---|---|---|
-| **0. Course trailer** | The whole journey in 2–3 minutes | — | Econ00 |
-| **1. Basics** | Economy around us: village, money, jobs, poverty | NCERT Class 9 + 10 | Econ01–09 |
-| **2. Microeconomics** | One buyer, one seller: demand, supply, price | NCERT Class 12 (Micro) | Econ10–15 |
-| **3. Macroeconomics** | The whole country: GDP, money, budget, trade | NCERT Class 12 (Macro) | Econ16–21 |
-| **4. India's story** | India 1947 → today: planning, 1991 reforms | NCERT Class 11 | Econ22–29 |
-| **5. Advanced Indian Economy** | Banking, inflation, taxes, markets, current data | Ramesh Singh | Econ30–51 |
-
-**About 52 classes in total.**
-
----
-
-## 2. Course trailer (Econ00): made first, to attract viewers
-
-- **Hook:** "टमाटर कभी ₹20, कभी ₹200… पेट्रोल का दाम कौन तय करता है? बैंक आपके पैसे का क्या करता है?"
-- **The map:** "Economics" sits in the centre, and the 5 levels fly out one by one, each with its catchy label and a 2-second animation.
-- **Promise:** "शुरुआत बिल्कुल ज़ीरो से। अंत में आप बजट, महँगाई और जीडीपी की ख़बर ख़ुद समझेंगे।"
-- **Outro:** "पहली क्लास — एक गाँव की कहानी से!"
-
----
-
-## 3. Every class follows the same pattern
-
-1. **Hook question:** a short scene with a problem, people and tension.
-2. **"आज की क्लास में…":** what today's class covers, said with excitement as a promise, not "we will discuss". For example: "आज की क्लास में आप जानेंगे — डिमांड असल में क्या है, दाम बढ़ने पर लोग कम क्यों ख़रीदते हैं, और ये बात एक ग्राफ़ पर कैसे दिखती है।" The same 3–5 points appear on screen as a list ("Aaj ki class mein…").
-3. **Mind map:** the chapter name in the centre, topics flying out.
-4. **Each topic:** scene → why it came → what it does → 💡 example → animation or graph → hook into the next topic.
-5. **Recap:** the same points as in step 2, now ticked ✓.
-6. **Next class teaser.**
-
-**Screen follows the voice, no subtitles.** Only the important words appear, each at the exact moment it is spoken, in Hinglish written in English letters (for example "Land", "Paisa aur Karz", "1947"), with a matching emoji on the stage. Map topics fly out and pictures change on the spoken word too.
-
----
-
-## 4. Every word is spoken, and spoken right
-
-A new automatic check, tested today:
-
-1. Sarvam makes the voice, line by line.
-2. **Sarvam's own speech-to-text listens to every line** and writes down exactly what it heard, word for word.
-3. The script and what was heard are compared word by word. Any **missing** or **changed** word is flagged.
-4. A flagged line is made again: a new take, slightly slower, or with a small spelling help for the voice only. Then it is checked again.
-5. If a line still fails after that, I list it for you before sending the video.
-
-**Test on the 2-minute sample:** the first run matched 21 of 23 lines and caught two real problems (both fixed with a retake, so now all 23 of 23 pass):
-- "भीड़ ही भीड़" was spoken as "भीड़ी भीड़";
-- "देखते" sounded like "बेचते".
-
-
-Writing rules that help pronunciation:
-- Numbers are written as spoken ("दो हज़ार तेईस").
-- English terms are written in Devanagari ("डिमांड").
-- Abbreviations are written letter by letter ("एन सी ई आर टी").
-
----
-
-## 5. The full class list
-
-### Level 1: Basics (NCERT Class 9 and 10)
-| No. | Class | NCERT chapter |
+### Part 1 · NEEV (Foundation) — Chapters 1–2
+| Ch | Ramesh Singh chapter | Classes (NCERT foundation first, then Ramesh Singh) |
 |---|---|---|
-| Econ01 | **एक गाँव की कहानी:** how anything gets made (land, labour, capital, enterprise) | Class 9 · The Story of Village Palampur |
-| Econ02 | **लोग ही असली दौलत:** education, health, jobs | Class 9 · People as Resource |
-| Econ03 | **गरीबी:** who is poor, how it is measured, what India did | Class 9 · Poverty as a Challenge |
-| Econ04 | **सबको खाना:** buffer stock, PDS, ration shop | Class 9 · Food Security in India |
-| Econ05 | **विकास क्या है?** income, health, HDI | Class 10 · Development |
-| Econ06 | **तीन सेक्टर:** farming, factories, services; organised vs unorganised | Class 10 · Sectors of the Indian Economy |
-| Econ07 | **पैसा और कर्ज़:** barter, banks, loans, self-help groups | Class 10 · Money and Credit |
-| Econ08 | **दुनिया एक बाज़ार:** MNCs, trade, WTO | Class 10 · Globalisation and the Indian Economy |
-| Econ09 | **ग्राहक के अधिकार** | Class 10 · Consumer Rights (check whether it is in your NCERT copy) |
+| 1 | Introduction | Econ01 The Story of Village Palampur (9) · Econ02 Central Problems & PPC (12 Mi ch1) · Econ03 Sectors of the Economy (10) · Econ04 Demand (12 Mi ch2) · Econ05 Production & Cost (12 Mi ch3) · Econ06 Supply (12 Mi ch4) · Econ07 Market Equilibrium (12 Mi ch5) · Econ08 Monopoly & Other Markets (12 Mi, if in your copy) · Econ09 Ramesh Singh Ch 1 |
+| 2 | Growth, Development and Happiness | Econ10 Development (10) · Econ11 Intro to Macroeconomics (12 Ma ch1) · Econ12 National Income & GDP (12 Ma ch2) · Econ13 India and its Neighbours (11 ch8) · Econ14 Ramesh Singh Ch 2 |
 
-### Level 2: Microeconomics (NCERT Class 12, Introductory Microeconomics)
-| No. | Class | Chapter |
+### Part 2 · BHARAT KA SAFAR (India's Journey) — Chapters 3–6
+| Ch | Ramesh Singh chapter | Classes |
 |---|---|---|
-| Econ10 | **हर चीज़ कम क्यों पड़ती है?** scarcity, choice, central problems, PPC | 1 · Introduction |
-| Econ11 | **डिमांड:** utility, budget line, law of demand, demand curve, shifts, elasticity *(your current 2-min sample is the start of this class)* | 2 · Theory of Consumer Behaviour |
-| Econ12 | **उत्पादन और लागत:** production function, costs | 3 · Production and Costs |
-| Econ13 | **सप्लाई:** firm under perfect competition, supply curve | 4 · Theory of the Firm under Perfect Competition |
-| Econ14 | **दाम कैसे तय होता है?** equilibrium, surplus, shortage, price ceiling and floor | 5 · Market Equilibrium |
-| Econ15 | **मोनोपॉली और कम मुक़ाबले वाले बाज़ार** | Non-competitive Markets (check whether it is in your NCERT copy) |
+| 3 | Evolution of the Indian Economy | Econ15 India on the Eve of Independence (11 ch1) · Econ16 Ramesh Singh Ch 3 |
+| 4 | Economic Planning | Econ17 Indian Economy 1950–1990 (11 ch2) · Econ18 Ramesh Singh Ch 4 |
+| 5 | Planning in India | Econ19 Ramesh Singh Ch 5 (Five-Year Plans to NITI Aayog) |
+| 6 | Economic Reforms | Econ20 LPG Reforms 1991 (11 ch3) · Econ21 Globalisation (10) · Econ22 Ramesh Singh Ch 6 |
 
-### Level 3: Macroeconomics (NCERT Class 12, Introductory Macroeconomics)
-| No. | Class | Chapter |
+### Part 3 · DAAM AUR SECTORS (Prices & Sectors) — Chapters 7–10
+| Ch | Ramesh Singh chapter | Classes |
 |---|---|---|
-| Econ16 | **पूरे देश की इकॉनमी** | 1 · Introduction |
-| Econ17 | **GDP और राष्ट्रीय आय** | 2 · National Income Accounting |
-| Econ18 | **पैसा और बैंकिंग:** RBI, how banks create money | 3 · Money and Banking |
-| Econ19 | **आय और रोज़गार:** demand in the economy, multiplier | 4 · Determination of Income and Employment |
-| Econ20 | **सरकार का बजट:** deficit, taxes, spending | 5 · Government Budget and the Economy |
-| Econ21 | **खुली इकॉनमी:** balance of payments, rupee exchange rate | 6 · Open Economy Macroeconomics |
+| 7 | Inflation and Business Cycle | Econ23 Income & Employment (12 Ma ch4) · Econ24 Ramesh Singh Ch 7 |
+| 8 | Agriculture and Food Management | Econ25 Food Security (9) · Econ26 Rural Development (11 ch5) · Econ27 Ramesh Singh Ch 8 |
+| 9 | Industry and Infrastructure | Econ28 Ramesh Singh Ch 9 |
+| 10 | Services Sector | Econ29 Ramesh Singh Ch 10 |
 
-### Level 4: India's story (NCERT Class 11, Indian Economic Development)
-| No. | Class | Chapter |
+### Part 4 · PAISA AUR BAZAAR (Money & Markets) — Chapters 11–14
+| Ch | Ramesh Singh chapter | Classes |
 |---|---|---|
-| Econ22 | **1947 की इकॉनमी:** what the British left behind | 1 · Indian Economy on the Eve of Independence |
-| Econ23 | **1950–1990:** Five-Year Plans, land reforms, Green Revolution | 2 · Indian Economy 1950–1990 |
-| Econ24 | **1991 का संकट और सुधार:** LPG | 3 · Liberalisation, Privatisation and Globalisation |
-| Econ25 | **ह्यूमन कैपिटल:** education and health as investment | 4 · Human Capital Formation in India |
-| Econ26 | **गाँव का विकास:** credit, marketing, diversification | 5 · Rural Development |
-| Econ27 | **रोज़गार:** formal vs informal work | 6 · Employment |
-| Econ28 | **पर्यावरण और टिकाऊ विकास** | 7 · Environment and Sustainable Development |
-| Econ29 | **भारत, चीन, पाकिस्तान:** comparing development | 8 · Comparative Development Experiences of India and its Neighbours |
+| 11 | Indian Financial Market | Econ30 Money and Credit (10) · Econ31 Ramesh Singh Ch 11 |
+| 12 | Banking in India | Econ32 Money and Banking (12 Ma ch3) · Econ33 Ramesh Singh Ch 12 |
+| 13 | Insurance in India | Econ34 Ramesh Singh Ch 13 |
+| 14 | Security Market in India | Econ35 Ramesh Singh Ch 14 |
 
-### Level 5: Advanced Indian Economy (Ramesh Singh)
-Each class starts from the NCERT class it builds on, then goes deeper, with the latest Budget and Economic Survey numbers (every number fact-checked).
+### Part 5 · DUNIYA AUR SARKAR (World & Government) — Chapters 15–18
+| Ch | Ramesh Singh chapter | Classes |
+|---|---|---|
+| 15 | External Sector in India | Econ36 Open Economy (12 Ma ch6) · Econ37 Ramesh Singh Ch 15 |
+| 16 | International Economic Organisations and India | Econ38 Ramesh Singh Ch 16 |
+| 17 | Tax Structure in India | Econ39 Ramesh Singh Ch 17 |
+| 18 | Public Finance in India | Econ40 Government Budget (12 Ma ch5) · Econ41 Ramesh Singh Ch 18 |
 
-| No. | Class | No. | Class |
-|---|---|---|---|
-| Econ30 | Introduction: types of economies | Econ41 | Banking in India |
-| Econ31 | Growth, Development and Happiness | Econ42 | Insurance in India |
-| Econ32 | Evolution of the Indian Economy | Econ43 | Security Market in India |
-| Econ33 | Economic Planning | Econ44 | External Sector in India |
-| Econ34 | Planning in India (to NITI Aayog) | Econ45 | International Economic Organisations and India |
-| Econ35 | Economic Reforms | Econ46 | Tax Structure in India (GST, income tax) |
-| Econ36 | Inflation and Business Cycle | Econ47 | Public Finance in India |
-| Econ37 | Agriculture and Food Management | Econ48 | Sustainability and Climate Change |
-| Econ38 | Industry and Infrastructure | Econ49 | Human Development in India |
-| Econ39 | Services Sector | Econ50 | Burning Socio-Economic Issues |
-| Econ40 | Indian Financial Market | Econ51 | Key Economic Concepts: the big revision |
+### Part 6 · SAMAJ AUR BHAVISHYA (People & Future) — Chapters 19–22
+| Ch | Ramesh Singh chapter | Classes |
+|---|---|---|
+| 19 | Sustainability and Climate Change | Econ42 Environment & Sustainable Development (11 ch7) · Econ43 Ramesh Singh Ch 19 |
+| 20 | Human Development in India | Econ44 People as Resource (9) · Econ45 Poverty (9) · Econ46 Human Capital (11 ch4) · Econ47 Ramesh Singh Ch 20 |
+| 21 | Burning Socio-Economic Issues | Econ48 Employment (11 ch6) · Econ49 Consumer Rights (10, if in your copy) · Econ50 Ramesh Singh Ch 21 |
+| 22 | Economic Concepts and Terminologies | Econ51 Key Terms + full-course revision |
 
-*This chapter order follows recent editions of Ramesh Singh. Please tell me your edition number so I can match it exactly.*
+A long Ramesh Singh chapter (Banking, Agriculture, Public Finance …) may be split into Part 1 / Part 2 classes.
 
----
+*The chapter titles follow recent editions of Ramesh Singh. Please tell me your edition so I can match it exactly.*
 
-## 6. How each class will be made (your process)
-
-1. I write the script from both sources, covering every fact, and fact-check it.
-2. I send you a **2-minute sample** (trailer or class opening) plus its recording script.
-3. You give feedback, and I fix it.
-4. I make the **full class video**, with every line passing the word check.
-5. File names: `Econ00 - Course Trailer.mp4`, `Econ01 - The Story of a Village.mp4` …
-
-## 7. Questions for you
-1. Is this order OK: basics first, then Micro, Macro, India's story, then Ramesh Singh?
-2. Which edition of Ramesh Singh do you have?
-3. Your current "Demand" sample becomes the start of **Econ11**. Is that OK?
-4. Shall I make the **Econ00 course trailer** first, as a sample?
+## How each class is made
+1. Script from both books, every fact checked.
+2. 2-minute sample + recording script → your feedback → full class.
+3. Every line passes the word check. Key words and pictures follow the voice.
+4. File names: `Econ01 - The Story of Village Palampur.mp4`, …

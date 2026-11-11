@@ -129,6 +129,13 @@ Whisper small is not a reliable judge of ट/ड for any voice (it mishears Sarv
   verify in the user's copy: 75%/25%, 200 ha by mid-1970s, 1300/3200 kg/ha, 150/240/60 families, Savita 24% 4 months,
   fewer than 50 in manufacturing.
 
+## 6e. Part 1 scripts (2026-11-11): all 17 Part-1 videos scripted, waiting for the user's review
+- Scripts: econ00p_promo, econ00b_roadmap, econ01_palampur (made), econ02_scarcity ... econ15_rs_ch3 (script only).
+- One book: `python3 ../polity/script_book.py "out/Economics Part 1 (Neev) - Complete Script Book.md" <modules...>`
+  (Hindi + Bengali letters + on-screen key words per line; real length for videos already voiced).
+- econ09 / econ12 / econ15 (Ramesh Singh Ch 1-3) are DRAFTS from standard facts: check against the book (ask for pages).
+- Workflow agreed: script first -> user review -> voice + word_check -> video.
+
 ## 7. What exists (repo `babu736168-stack/Video`, branch `ccr-a809289b-ssj04s`, all pushed)
 - `polity/`
   - `ch01_script.py`: the full Ch01 narration so far (hook, map, 1600–1858 background, Regulating Act 1773, Act of Settlement 1781, Pitt's India Act 1784, recap).

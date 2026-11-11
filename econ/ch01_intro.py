@@ -1,5 +1,11 @@
 """Ch01 - Introduction to Economics: one full, detailed video for Ramesh Singh, Indian Economy (18e), Chapter 1 only
-(no NCERT add-ins, at the user's request).
+(no NCERT add-ins, at the user's request). Added after the user said points were missing: economic agents;
+capitalism's failure in the Great Depression -> mixed economy; the Washington Consensus (term by John Williamson, 1989;
+IMF, World Bank, US Treasury; first for Latin America's debt crises; ten policies incl. fiscal discipline, tax reform,
+trade liberalisation, openness to FDI, privatisation, deregulation, property rights; criticised as one-size-fits-all,
+more so after the 2008 crisis), the Beijing Consensus (term by Joshua Cooper Ramo, 2004: experimentation, gradual
+reform, strong state role, selective adoption of foreign ideas) and the Santiago Consensus (social inclusion, local
+development; details to check against the book).
 DRAFT: the chapter's topic list is from chapter summaries of Ramesh Singh Ch 1 (definitions; micro and macro;
 production, consumption, distribution; capitalist / market, socialist, communist and mixed economies with features,
 merits and demerits; distribution systems; primary, secondary, tertiary, quaternary, quinary sectors). The detail is
@@ -29,6 +35,7 @@ TOPICS = [
     dict(id="state", name="State Economy", label="Socialist & communist", icon="🏛️"),
     dict(id="mixed", name="Mixed Economy", label="The middle path", icon="🤝"),
     dict(id="world", name="How the World Changed", label="1929 → 1991 → today", icon="🌍"),
+    dict(id="consensus", name="Three Consensuses", label="Washington · Beijing · Santiago", icon="🧭"),
     dict(id="distribution", name="Distribution Systems", label="Who gets what?", icon="🍽️"),
     dict(id="sectors", name="Sectors of the Economy", label="Five floors of work", icon="🏢"),
 ]
@@ -45,7 +52,7 @@ LINES = [
     ("agenda", "[name] तो आज की क्लास में आप जानेंगे —"),
     (None, "पहला — {इकॉनॉमिक्स की परिभाषाएँ|Definitions|📜}, इकॉनमी, और {माइक्रो-मैक्रो|Micro · Macro|🌳}।"),
     (None, "दूसरा — {तीन इकॉनॉमिक सिस्टम|3 Economic Systems|🏛️}, उनकी ख़ूबियाँ, और कमियाँ।"),
-    (None, "तीसरा — सत्रह सौ छिहत्तर से आज तक, {दुनिया कैसे बदली|How the world changed|🌍} — और हर सिस्टम में, {बँटवारा|Distribution|🍽️}।"),
+    (None, "तीसरा — सत्रह सौ छिहत्तर से आज तक, {दुनिया कैसे बदली|World · 3 Consensuses|🌍} — वॉशिंगटन, बीजिंग, और सैंटियागो कंसेंसस — और हर सिस्टम में, बँटवारा।"),
     (None, "और चौथा — इकॉनमी के {पाँच सेक्टर|5 Sectors|🏢}।"),
 
     ("center", "[name] रमेश सिंह, चैप्टर एक — इंट्रोडक्शन टू इकॉनॉमिक्स!"),
@@ -70,7 +77,7 @@ LINES = [
     (None, "और {डिस्ट्रीब्यूशन|Distribution|🍽️}, यानी बाँटना — कौन, कितना पाए।"),
     ("ex:", "जैसे चाय — किसान ने पत्ती उगाई, फ़ैक्टरी ने पैक की — ये प्रोडक्शन। दुकान से आप तक पहुँची — ये डिस्ट्रीब्यूशन। और आपने पी — ये कंज़म्प्शन!"),
     (None, "[scene] अब इकॉनमी को पढ़ने की, दो नज़रें। {उन्नीस सौ तैंतीस|1933|📅} में, नॉर्वे के {रैगनर फ़्रिश|Ragnar Frisch|🎓} ने, इन्हें दो नाम दिए।"),
-    (None, "[name] {माइक्रोइकॉनॉमिक्स|Microeconomics|🔬} — एक पेड़। यानी एक ग्राहक, एक कंपनी, एक बाज़ार। जैसे — प्याज़ का दाम कैसे तय हुआ, या एक कंपनी कितना बनाए।"),
+    (None, "[name] {माइक्रोइकॉनॉमिक्स|Microeconomics|🔬} — एक पेड़। यानी अलग-अलग {इकॉनॉमिक एजेंट्स|Economic agents|👥} — जैसे एक ग्राहक, एक कंपनी, एक बाज़ार। जैसे — प्याज़ का दाम कैसे तय हुआ, या एक कंपनी कितना बनाए।"),
     (None, "[name] {मैक्रोइकॉनॉमिक्स|Macroeconomics|🌏} — पूरा जंगल। यानी पूरे देश का {कुल उत्पादन|Total output|🏭}, {रोज़गार|Employment|👷}, {महँगाई|Inflation|🔥}, और {विकास दर|Growth rate|📈}।"),
     (None, "[punch] और याद रखिए — दोनों अलग नहीं। हज़ारों पेड़ मिलकर ही, जंगल बनाते हैं!"),
 
@@ -116,7 +123,7 @@ LINES = [
     (None, "इसकी पहचान — {प्राइवेट सेक्टर|Private sector|🏢} और {पब्लिक सेक्टर|Public sector|🏛️}, दोनों साथ-साथ।"),
     (None, "मुनाफ़े वाले ज़्यादातर काम — प्राइवेट सेक्टर के हाथ में। और ज़रूरी, बड़े, या भलाई वाले काम — जैसे रेल, बिजली, बाँध, गरीबों के लिए राशन — सरकार के हाथ में।"),
     (None, "और बाज़ार ठीक से चले, किसी के साथ ग़लत न हो — इसके लिए सरकार बनाती है, {नियम|Regulation|📏}।"),
-    (None, "[scene] ये रास्ता मज़बूत हुआ — उन्नीस सौ उनतीस की {ग्रेट डिप्रेशन|Great Depression|🏚️} के बाद। जब बाज़ार अकेले, संभाल नहीं पाया।"),
+    (None, "[scene] ये रास्ता मज़बूत हुआ — उन्नीस सौ उनतीस की {ग्रेट डिप्रेशन|Great Depression|🏚️} के बाद। जब अकेला बाज़ार — यानी शुद्ध कैपिटलिज़्म — {नाकाम|Capitalism failed|💥} दिखा।"),
     (None, "{उन्नीस सौ छत्तीस|1936|📖} में, {जॉन मेनार्ड कीन्स|J. M. Keynes|🎩} ने कहा — मुश्किल वक़्त में, सरकार को, ख़र्च करके आगे आना चाहिए।"),
     (None, "[scene] {ख़ूबियाँ|Merits|✅} — बाज़ार की रफ़्तार, और सरकार का सहारा — एक साथ। बढ़त भी, और भलाई भी।"),
     (None, "[scene] {कमियाँ|Demerits|❌} — कभी-कभी दोनों की कमज़ोरियाँ भी, साथ आ जाती हैं। सरकारी कंपनियों में {घाटा|Losses|📉}, फ़ैसलों में {देरी|Delays|⏳}, और {भ्रष्टाचार|Corruption|🕳️} का ख़तरा।"),
@@ -136,7 +143,20 @@ LINES = [
     (None, "{उन्नीस सौ पचानवे|1995|🤝} — {डब्ल्यू टी ओ|WTO|🌐} बना। दुनिया के बाज़ार, और क़रीब आए।"),
     (None, "[punch] आज — लगभग हर देश, कहीं न कहीं, {मिक्स्ड|Almost all are mixed|🤝} है। फ़र्क़ बस इतना — बाज़ार कितना, और सरकार कितनी!"),
 
-    # ---------------------------------------------------------------- 7. Distribution systems
+    # ---------------------------------------------------------------- 7. Three consensuses
+    ("focus:consensus", "[scene] अब एक बड़ा सवाल — एक गरीब देश अमीर कैसे बने? इस पर दुनिया में, तीन बड़ी सोच आईं। इन्हें कहते हैं — {कंसेंसस|Consensus|🧭}, यानी आम सहमति।"),
+    (None, "[name] पहली — {वॉशिंगटन कंसेंसस|Washington Consensus|🇺🇸}। ये नाम दिया, अर्थशास्त्री {जॉन विलियमसन|John Williamson|🎓} ने — {उन्नीस सौ नवासी|1989|📅} में।"),
+    (None, "नाम वॉशिंगटन क्यों? क्योंकि इसके पीछे थे — वॉशिंगटन में बैठे, {आई एम एफ़|IMF|🏦}, {वर्ल्ड बैंक|World Bank|🌐}, और {अमेरिका का ट्रेज़री विभाग|US Treasury|🇺🇸}।"),
+    (None, "शुरुआत में ये नुस्ख़ा था — {लैटिन अमेरिका|Latin America crisis|🌎} के, क़र्ज़ और संकट में फँसे देशों के लिए।"),
+    (None, "इसकी दस सिफ़ारिशें थीं। मुख्य बातें — {सरकारी ख़र्च में अनुशासन|Fiscal discipline|📏}, {टैक्स सुधार|Tax reform|🧾}, {व्यापार खोलना|Trade liberalisation|🚢}, {विदेशी निवेश को आने देना|Open to FDI|🌍}, {निजीकरण|Privatisation|🏢}, {नियमों में ढील|Deregulation|🔓}, और {संपत्ति के अधिकार|Property rights|🔑}।"),
+    (None, "[punch] यानी सीधा संदेश — सरकार पीछे हटे, बाज़ार आगे आए!"),
+    (None, "[scene] लेकिन धीरे-धीरे, आलोचना भी हुई — हर देश के लिए, {एक ही नुस्ख़ा|One size fits all?|👕} कैसे सही? और ख़ासकर, दो हज़ार आठ के वैश्विक संकट के बाद — सरकार की भूमिका पर, फिर से ज़ोर आया।"),
+    (None, "[name] दूसरी — {बीजिंग कंसेंसस|Beijing Consensus|🇨🇳}। यानी चीन का मॉडल। ये नाम दिया — {जोशुआ कूपर रामो|Joshua Cooper Ramo|✍️} ने, {दो हज़ार चार|2004|📅} में।"),
+    (None, "इसकी बातें — {नए प्रयोग|Experimentation|🧪}, {धीरे-धीरे सुधार|Gradual reforms|🐢}, सरकार की मज़बूत भूमिका — और बाहर के विचारों में से, सिर्फ़ {काम के विचार|Selective adoption|🎯} लेना।"),
+    (None, "[name] और तीसरी — {सैंटियागो कंसेंसस|Santiago Consensus|🇨🇱}। इसका ज़ोर — सिर्फ़ बढ़त पर नहीं, बल्कि {सबको साथ लेकर|Social inclusion|🤝} चलने पर, और {स्थानीय विकास|Local development|🏘️} पर।"),
+    ("ex:", "यानी — {वॉशिंगटन|Market first|🏪} कहता है, बाज़ार पहले। {बीजिंग|State-guided experiments|🧪} कहता है, सरकार की निगरानी में प्रयोग। और {सैंटियागो|Inclusion first|🤝} कहता है — सबकी भलाई, साथ-साथ।"),
+
+    # ---------------------------------------------------------------- 8. Distribution systems
     ("focus:distribution", "[scene] अब सवाल — जो बना, वो बँटा कैसे? हर सिस्टम का, अपना {बँटवारे का तरीक़ा|Distribution system|🍽️} है।"),
     (None, "[name] कैपिटलिस्ट सिस्टम में — बँटवारा करता है {बाज़ार|Market price|🏷️}। जिसके पास ख़रीदने की ताक़त — उसे मिलता है।"),
     (None, "यानी — अमीर को ज़्यादा, गरीब को कम। तेज़ और आसान — लेकिन बराबर नहीं।"),
@@ -145,7 +165,7 @@ LINES = [
     (None, "[name] और मिक्स्ड सिस्टम में — {दोनों|Market + State|🤝}। ज़्यादातर चीज़ें बाज़ार से — और ज़रूरतमंदों के लिए, सरकार की मदद।"),
     ("ex:", "जैसे भारत में — मोबाइल फ़ोन, बाज़ार से। और राशन की दुकान का सस्ता अनाज — यानी {पी डी एस|PDS|🍚} — और {सब्सिडी|Subsidy|🎁}, सरकार की ओर से!"),
 
-    # ---------------------------------------------------------------- 8. Sectors
+    # ---------------------------------------------------------------- 9. Sectors
     ("focus:sectors", "[scene] आख़िर में — इकॉनमी को, एक {पाँच मंज़िला इमारत|5 floors|🏢} की तरह देखिए। हर मंज़िल पर, अलग तरह का काम।"),
     (None, "[name] पहली मंज़िल — {प्राइमरी सेक्टर|Primary|🌾}। कुदरत से सीधे लेना।"),
     (None, "{खेती|Agriculture|🌱}, {पशुपालन और डेयरी|Dairy|🐄}, {मछली पालन|Fishing|🎣}, {जंगल|Forestry|🌳}, और {खदानें|Mining|⛏️}।"),
@@ -166,6 +186,7 @@ LINES = [
     (None, "{प्रोडक्शन, कंज़म्प्शन, डिस्ट्रीब्यूशन|Production · Consumption · Distribution|🏭} — और {माइक्रो-मैक्रो|Micro & Macro|🌳}।"),
     (None, "{तीन सिस्टम|Capitalist · State · Mixed|🏛️} — हर एक की, ख़ूबियाँ और कमियाँ।"),
     (None, "{भारत|India: Mixed → Market-friendly|🇮🇳} — प्लानिंग वाली मिक्स्ड इकॉनमी, और फिर, उन्नीस सौ इक्यानवे।"),
+    (None, "{तीन कंसेंसस|Washington · Beijing · Santiago|🧭} — बाज़ार पहले, प्रयोग, और सबको साथ।"),
     (None, "{तीन तरह का बँटवारा|Market · State · Mixed|🍽️}, और {पाँच सेक्टर|5 Sectors|🏢}।"),
 
     # ---------------------------------------------------------------- next + channel

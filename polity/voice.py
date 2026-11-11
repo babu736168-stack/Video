@@ -251,7 +251,8 @@ def main():
             kw["t"] = round(wtimes[kw["word"]] if kw["word"] < len(wtimes) else start, 3)
         tl.append(dict(i=i, ev=ev, text=text, tags=tags, start=round(start, 3), end=round(t, 3), sents=rec, kw=kws))
         print(f"{i:3d} {start:7.2f} {ev or '':12.12s} {text[:60]}")
-    audio.append(np.zeros(int(1.5 * SR))); t += 1.5
+    tail = float(os.environ.get("TAIL", "1.5"))       # silence held at the end (a promo holds its last screen)
+    audio.append(np.zeros(int(tail * SR))); t += tail
     a = np.concatenate(audio); a = a / max(1e-6, np.abs(a).max()) * 0.9
     sf.write(os.path.join(out, "voice.wav"), a, SR)
     json.dump(dict(total=t, lines=tl, voice=VOICE), open(os.path.join(out, "timeline.json"), "w"), ensure_ascii=False, indent=1)

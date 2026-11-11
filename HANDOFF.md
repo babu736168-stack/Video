@@ -108,6 +108,15 @@ Whisper small is not a reliable judge of ट/ड for any voice (it mishears Sarv
   Run: `ENGINE=sarvam VOICE=sanchita_hi_edtech BASE=1.0 python3 ../polity/voice.py econ01_sample`,
   `python3 ../polity/word_check.py econ01_sample`, `python3 render_course.py econ01_sample "<name>.mp4"`.
 
+## 6c. Promo (2026-11-11): "Econ00p - Course Promo.mp4" (1:33), the user's cinematic brief
+- `econ/econ00p_promo.py` + `econ/render_promo.py`: best moments of trailer + roadmap re-edited; slam cuts with
+  glimpses of course animations (CHAPTER hook_bg), dark pause, flash reveal, quick parts, VAADA, CTA screen
+  "WATCH THE FULL CLASS / FOLLOW THE LINK BELOW". Voice Sanchita at 1.1x, TAIL=4.
+- **Music + SFX exist only in the promo** (the user asked for them here). Made from scratch in render_promo.py:
+  drums, strings (200 Hz-2.4 kHz), pluck ostinato, risers, whooshes, impacts on every cut; no sustained low drone
+  (classes stay music-free after the earlier "vibrating" complaint); music ducked ~13 dB under speech.
+  Word check on the final mix: 19/19 lines, no missing word.
+
 ## 7. What exists (repo `babu736168-stack/Video`, branch `ccr-a809289b-ssj04s`, all pushed)
 - `polity/`
   - `ch01_script.py`: the full Ch01 narration so far (hook, map, 1600–1858 background, Regulating Act 1773, Act of Settlement 1781, Pitt's India Act 1784, recap).

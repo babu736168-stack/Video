@@ -21,6 +21,7 @@ MARK = {"punch": "🔊 ", "scene": "🐢 ", "name": "🐢 "}
 
 def video_name(mod, S):
     C = S.CHAPTER; n = C.get("num", 0)
+    if C.get("video"): return C["video"]
     if mod.endswith("promo"): return "Econ00p – Course Promo"
     if mod.endswith("roadmap"): return "Econ00b – Syllabus Roadmap"
     return f"Econ{n:02d} – {C['title']}"
@@ -75,7 +76,7 @@ def book(mods):
             if screen or notes:
                 body.append("   🖥 " + " · ".join(screen + [f"*{n}*" for n in notes]))
             body.append("")
-    head = ["# Economics · Part 1 (Neev) · Complete Script Book", "",
+    head = [f"# {os.environ.get('BOOK_TITLE', 'Economics · Part 1 (Neev) · Complete Script Book')}", "",
             "**The VisualMind** — See it. Understand it. Remember it.", "",
             "Course order: Ramesh Singh, *Indian Economy* (18th edition), Chapters 1–3, with the NCERT foundation "
             "classes first. Voice: Sarvam, Sanchita, speed 1.0 (promo 1.1).", "",

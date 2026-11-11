@@ -41,7 +41,7 @@ The course climbs in 5 levels. Each level uses the one before it, so a beginner 
 5. **Recap:** the same points as in step 2, now ticked ✓.
 6. **Next class teaser.**
 
-The on-screen text always shows the same words that are spoken, in **Hinglish written in English letters** (for example "Daam badha, to log kam khareedte hain."). English terms keep their normal spelling (Demand, GDP, NCERT).
+**Screen follows the voice, no subtitles.** Only the important words appear, each at the exact moment it is spoken, in Hinglish written in English letters (for example "Land", "Paisa aur Karz", "1947"), with a matching emoji on the stage. Map topics fly out and pictures change on the spoken word too.
 
 ---
 

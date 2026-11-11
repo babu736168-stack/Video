@@ -49,6 +49,11 @@ def norm(w):
     return w
 
 
+def loose(w):
+    """Looser fold, only to ignore transcription spelling noise: ी/ि, ू/ु, dropped nasal sign (चलें = चले, हैं = है)."""
+    return w.replace("\u0940", "\u093f").replace("\u0942", "\u0941").replace("\u0902", "")
+
+
 def words(text):
     text = re.sub(r"[\[\]\(\)।?!,.:;—–\-‘’'\"…|]", " ", text)
     return [norm(w) for w in text.split() if w]
@@ -68,7 +73,7 @@ def main():
         missing, changed = [], []
         for op, i1, i2, j1, j2 in sm.get_opcodes():
             if op == "delete": missing += said_w[i1:i2]
-            elif op == "replace" and "".join(said_w[i1:i2]) != "".join(heard_w[j1:j2]):   # फिसलपट्टी = फिसल पट्टी
+            elif op == "replace" and loose("".join(said_w[i1:i2])) != loose("".join(heard_w[j1:j2])):   # फिसलपट्टी = फिसल पट्टी
                 changed.append((" ".join(said_w[i1:i2]), " ".join(heard_w[j1:j2])))
         ok = difflib.SequenceMatcher(a="".join(said_w), b="".join(heard_w), autojunk=False).ratio()
         if missing: bad += 1

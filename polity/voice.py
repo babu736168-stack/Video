@@ -80,6 +80,64 @@ def parse(line):
     return tags, re.sub(r"^\[\w+\]\s*", "", line)
 
 
+# ---- key words: {spoken words|Screen label|emoji} or {spoken words|@topic_id}
+# The voice says the spoken words; the label/emoji pops on screen (or the topic flies out) at that moment.
+KW = re.compile(r"\{([^{}|]+)\|([^{}]*)\}")
+PUNCT = "।?!,.:;—–-‘’'\"…()"
+
+
+def toks(text):
+    """Word tokens (pure punctuation like — is not a word)."""
+    return [w for w in text.split() if w.strip(PUNCT)]
+
+
+def keywords(text):
+    """-> (spoken text, [dict(word=index of first spoken word, label, emoji, topic)])"""
+    out, spoken, pos = [], "", 0
+    for m in KW.finditer(text):
+        spoken += text[pos:m.start()]
+        parts = [p.strip() for p in m.group(2).split("|")]
+        topic = parts[0][1:] if parts[0].startswith("@") else None
+        out.append(dict(word=len(toks(spoken)), label="" if topic else parts[0],
+                        emoji=parts[1] if len(parts) > 1 else "", topic=topic, said=m.group(1)))
+        spoken += m.group(1); pos = m.end()
+    return spoken + text[pos:], out
+
+
+def word_starts(a, words):
+    """Start time (s) of each word inside one synthesized chunk.
+    Time is shared by syllable length; pauses found in the audio are matched to the commas."""
+    if not words: return []
+    def syl(w):
+        return max(1, len(re.findall("[\u0905-\u0914\u0915-\u0939\u0958-\u095f][\u093e-\u094c]?", w)) +
+                   len(re.findall("[\u093e\u0940\u0947\u0948\u094b\u094c]", w)) * 0.5)
+    dur = len(a) / SR
+    # internal pauses: 20 ms frames below -35 dB of the peak, lasting >= 120 ms
+    fr = int(0.02 * SR); n = len(a) // fr
+    rms = np.sqrt(np.mean(a[:n * fr].reshape(n, fr) ** 2, axis=1) + 1e-12) if n else np.zeros(0)
+    quiet = rms < (rms.max() if n else 1) * 10 ** (-35 / 20)
+    gaps, k = [], 0
+    while k < n:
+        if quiet[k]:
+            j = k
+            while j < n and quiet[j]: j += 1
+            if j - k >= 6 and k > 0 and j < n: gaps.append((k * fr / SR, j * fr / SR))
+            k = j
+        else: k += 1
+    commas = [i for i, w in enumerate(words[:-1]) if w[-1:] in ",;:"]
+    # split the chunk at the pauses that belong to commas (largest pauses, kept in order)
+    use = sorted(sorted(gaps, key=lambda g: g[0] - g[1])[:len(commas)]) if len(gaps) >= len(commas) else []
+    bounds = [0] + [c + 1 for c in commas] + [len(words)] if use else [0, len(words)]
+    times = [0.0] + [g[1] for g in use] + [dur] if use else [0.0, dur]
+    ends = [g[0] for g in use] + [dur] if use else [dur]
+    st = []
+    for s_i in range(len(bounds) - 1):
+        ws = words[bounds[s_i]:bounds[s_i + 1]]; t0, t1 = times[s_i], ends[s_i]
+        w8 = [syl(w) for w in ws]; tot = sum(w8); acc = 0
+        for w in w8: st.append(t0 + (t1 - t0) * acc / tot); acc += w
+    return st
+
+
 def trim(a, thr=0.01):
     idx = np.where(np.abs(a) > thr)[0]
     if not len(idx): return a
@@ -160,6 +218,8 @@ def main():
     for i, (ev, line) in enumerate(S.LINES):
         TAKE[0] = int(retakes.get(str(i), 0))
         tags, text = parse(line)
+        text, kws = keywords(text)
+        wtimes = []                       # start time of every spoken word in this line
         # longer breath at a new screen section
         gap = 0.0
         if ev and (ev.startswith(("focus", "hub", "center", "recap", "outro", "acts"))):
@@ -179,6 +239,7 @@ def main():
             for c_i, c in enumerate(chunks):
                 if not c: continue
                 a = trim(synth(c, spd, st["marks"])) * g
+                wtimes += [t + x for x in word_starts(a, toks(c))]
                 audio.append(a); t += len(a) / SR
                 if c_i + 1 < len(chunks):
                     b = 0.22 + rng.uniform(-0.04, 0.05)
@@ -186,7 +247,9 @@ def main():
             post = st["post"] + rng.uniform(-0.05, 0.08)
             audio.append(np.zeros(int(post * SR))); t += post
             rec.append(dict(text=sent, speed=round(spd, 2), gain=st["gain"], marks=st["marks"]))
-        tl.append(dict(i=i, ev=ev, text=text, tags=tags, start=round(start, 3), end=round(t, 3), sents=rec))
+        for kw in kws:
+            kw["t"] = round(wtimes[kw["word"]] if kw["word"] < len(wtimes) else start, 3)
+        tl.append(dict(i=i, ev=ev, text=text, tags=tags, start=round(start, 3), end=round(t, 3), sents=rec, kw=kws))
         print(f"{i:3d} {start:7.2f} {ev or '':12.12s} {text[:60]}")
     audio.append(np.zeros(int(1.5 * SR))); t += 1.5
     a = np.concatenate(audio); a = a / max(1e-6, np.abs(a).max()) * 0.9

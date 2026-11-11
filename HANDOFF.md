@@ -93,6 +93,18 @@ voice.py retries on 429 (rate limit) and caches each clip in /tmp/claude-0/tts/s
 For a flagged line, put {"line no.": take no.} in out/<script>/retakes.json and re-run voice.py (fresh recording). ds_2min: 23/23 pass.
 Whisper small is not a reliable judge of ट/ड for any voice (it mishears Sarvam's native voices too); NCERT is heard correctly.
 
+## 6b. Latest screen rule (user, 2026-11-11): no subtitles, key words only, screen follows the voice
+- Script markup in LINES: `{spoken words|Screen label|emoji}` pops the label (and emoji on the stage) exactly when
+  the words are spoken; `{spoken words|@topic_id}` flies that topic out on the map. voice.py strips the markup for
+  the voice, finds each word's time (pauses + syllable share inside each spoken chunk) and stores `kw` in timeline.json.
+- `econ/render_course.py`: hook (key words big), "AAJ KI CLASS MEIN" agenda (event `agenda`), map, boards with
+  key-word chips + emoji stage, recap ticks (event `recap`, optional CHAPTER recap_title), outro.
+- Course plan: `econ/COURSE_PLAN.md` (52 classes, NCERT 9-12 then Ramesh Singh; 4 questions to the user still open).
+- Samples made: `econ00_trailer.py` -> "Econ00 - Course Trailer (sample).mp4";
+  `econ01_sample.py` -> "Econ01 - The Story of Village Palampur (2-min sample).mp4". Both pass word_check.
+  Run: `ENGINE=sarvam VOICE=sanchita_hi_edtech BASE=1.0 python3 ../polity/voice.py econ01_sample`,
+  `python3 ../polity/word_check.py econ01_sample`, `python3 render_course.py econ01_sample "<name>.mp4"`.
+
 ## 7. What exists (repo `babu736168-stack/Video`, branch `ccr-a809289b-ssj04s`, all pushed)
 - `polity/`
   - `ch01_script.py`: the full Ch01 narration so far (hook, map, 1600–1858 background, Regulating Act 1773, Act of Settlement 1781, Pitt's India Act 1784, recap).

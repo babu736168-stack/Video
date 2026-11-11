@@ -33,7 +33,10 @@ def screen_of(ev, S, state):
         return state["screen"] + " (continues)"
     kind, _, body = ev.partition(":")
     if kind == "hook":
-        s = "Hook screen: “" + S.CHAPTER["hook_en"].replace("\n", " ") + "”"
+        s = ("Hook screen: “" + S.CHAPTER["hook_en"].replace("\n", " ") + "”") if "hook_en" in S.CHAPTER else \
+            "Hook screen: key words pop up as they are spoken"
+    elif kind == "agenda":
+        s = "“AAJ KI CLASS MEIN” screen: numbered items appear as they are spoken"
     elif kind == "center":
         s = f"Mind map: “Chapter {S.CHAPTER['num']} · {S.CHAPTER['title']}” appears in the centre"
     elif kind == "hub":
@@ -56,7 +59,8 @@ def screen_of(ev, S, state):
     elif kind == "ex":
         s = f"Board ({state.get('board', '')}): 💡 example → “{body}”"
     elif kind == "recap":
-        s = "Recap screen: row → “" + body.split("|", 1)[1] + "”"
+        s = ("Recap screen: row → “" + body.split("|", 1)[1] + "”") if "|" in body else \
+            f"{S.CHAPTER.get('recap_title', 'RECAP')} screen: items are ticked as they are spoken"
     elif kind == "outro":
         s = "Outro: map with the next topic pulsing, text “" + body + "”"
     else:
@@ -80,6 +84,8 @@ def main():
     for l in TL["lines"]:
         cid = f"C{C['num']:02d}-{l['i'] + 1:03d}"
         scr = screen_of(l["ev"], S, state)
+        words = [k["label"] for k in l.get("kw", []) if k.get("label")]
+        if words: scr += " · key words: " + ", ".join(words)
         parts = []
         for s in l["sents"]:
             m = s["marks"]

@@ -532,9 +532,12 @@ def audio_mix(mod, total, out):
     v = sosfiltfilt(butter(4, 75, "high", fs=SR, output="sos"), v)
     n = int(total * SR) + SR; mix = np.zeros(n); mix[:len(v)] += v[:n]
     TL = json.load(open(os.path.join(HERE, "out", mod, "timeline.json")))
-    for l in TL["lines"]:
-        if (l["ev"] or "").startswith(("pt:", "ex:")):
-            i = int(l["start"] * SR) + int(0.45 * SR); tt = np.arange(int(0.08 * SR)) / SR
+    ticks = [k["t"] + 0.05 for l in TL["lines"] for k in l.get("kw", []) if k.get("label")]   # key word pops
+    if not ticks:
+        ticks = [l["start"] + 0.45 for l in TL["lines"] if (l["ev"] or "").startswith(("pt:", "ex:"))]
+    for tk in ticks:
+        if True:
+            i = int(tk * SR); tt = np.arange(int(0.08 * SR)) / SR
             y = np.sin(2 * np.pi * 1320 * tt) * np.exp(-tt * 60) * 0.025
             mix[i:i + len(y)] += y[:max(0, n - i)]
     mix /= np.abs(mix).max() / 0.9

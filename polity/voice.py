@@ -2,7 +2,7 @@
 """Narration with sentence-level prosody (Kokoro, Hindi voice), shared rules with the recording script.
 
 python3 voice.py ch01_script  ->  out/<script>/voice.wav + timeline.json
-Base speed 1.5x. Per sentence:
+Base speed 1.4x (ENGINE=kokoro, VOICE=hf_alpha). ENGINE=sarvam uses the Sarvam Bulbul API. Per sentence:
   slow+firm  scene openers, सोचिए / ध्यान दीजिए / याद रखिए, the line naming the topic
   loud+slow  exclamations and short punch lines
   soft       यानी / मतलब explanations
@@ -16,10 +16,25 @@ import soundfile as sf
 HERE = os.getcwd()          # run from the project folder (polity/, econ/ ...)
 sys.path.insert(0, HERE)
 TTS = "/tmp/claude-0/tts"
-ENGINE = os.environ.get("ENGINE", "kokoro")           # kokoro (user-chosen hf_alpha, 1.4x) | piper
-VOICE = os.environ.get("VOICE", "pratham" if ENGINE == "piper" else "hf_alpha")
-BASE = float(os.environ.get("BASE", "1.4"))
+ENGINE = os.environ.get("ENGINE", "kokoro")           # kokoro (user-chosen hf_alpha, 1.4x) | piper | sarvam
+VOICE = os.environ.get("VOICE", {"piper": "pratham", "sarvam": "ritu_hi_edtech"}.get(ENGINE, "hf_alpha"))
+BASE = float(os.environ.get("BASE", "1.0" if ENGINE == "sarvam" else "1.4"))
 SR = 22050 if ENGINE == "piper" else 24000
+
+# ---- clarity fixes (Kokoro only; screen text and the recording script keep the normal spelling).
+# Found with a Whisper check: espeak's Hindi rules drop the n in डिमांड, turn ख़ into a sound heard as "र",
+# and add a vowel inside मतलब / पहली. These words get corrected phonemes.
+SAY_PH = {
+    "डिमांड": "ɖɪmˈaːnɖ",
+    "ख़रीदते": "kʰəɾˈiːdteː", "ख़रीदना": "kʰəɾˈiːdnaː", "ख़रीद": "kʰəɾˈiːd", "ख़र्च": "kʰˈʌɾtʃ",
+    "मतलब": "mˈʌtləb",
+    "पहली": "pˈɛhliː",
+}
+# Lines with these words are spoken a little slower.
+HARD = ("डिमांड", "टमाटर", "ख़रीद", "बढ़", "पहली", "मतलब")
+HARD_SLOW = 0.9
+# Letter-by-letter abbreviations: each letter is its own small clip with a short gap.
+ACRONYMS = ("एन सी ई आर टी",)
 # excitement per delivery: (pitch lift, intonation spread)
 PITCH = {"🔊": (1.07, 1.25), "🐢": (1.03, 1.15), "🔉": (1.0, 1.05), "": (1.05, 1.2)}
 
@@ -83,11 +98,45 @@ def main():
             key = "🔊" if "🔊" in marks else "🐢" if "🐢" in marks else "🔉" if "🔉" in marks else ""
             lift, spread = PITCH[key]
             return excite(a, sr, lift=lift, spread=spread, bright=0.15) * 0.8
-    else:
+    elif ENGINE == "kokoro":
         from kokoro_onnx import Kokoro
         k = Kokoro(f"{TTS}/kokoro-v1.0.onnx", f"{TTS}/voices-v1.0.bin")
+        fix = [(k.tokenizer.phonemize(w, "hi"), ph) for w, ph in SAY_PH.items()]
+        fix.sort(key=lambda x: -len(x[0]))
+
+        def say(c, spd):
+            ph = k.tokenizer.phonemize(c, "hi")
+            for bad, good in fix: ph = ph.replace(bad, good)
+            return np.asarray(k.create(ph, voice=VOICE, speed=spd, lang="hi", is_phonemes=True)[0], np.float32)
+
         def synth(c, spd, marks):
-            return np.asarray(k.create(c, voice=VOICE, speed=spd, lang="hi")[0], np.float32)
+            parts = re.split("(" + "|".join(map(re.escape, ACRONYMS)) + ")", c)
+            out = []
+            for p in parts:
+                p = p.strip(" ,")
+                if not p: continue
+                if p in ACRONYMS:
+                    for L in p.split():
+                        out += [trim(np.asarray(k.create(L, voice=VOICE, speed=min(spd, 1.2), lang="hi")[0], np.float32)),
+                                np.zeros(int(0.1 * SR), np.float32)]
+                else:
+                    out += [trim(say(p, spd)), np.zeros(int(0.08 * SR), np.float32)]
+            return np.concatenate(out[:-1]) if out else np.zeros(1, np.float32)
+    if ENGINE == "sarvam":
+        # Sarvam Bulbul REST API. In a cloud session the network proxy adds the key; elsewhere set SARVAM_API_KEY.
+        import base64, io, urllib.request
+        MODEL = os.environ.get("SARVAM_MODEL", "bulbul:v4-flash")
+
+        def synth(c, spd, marks):
+            body = dict(text=c, language_code="hi-IN", model=MODEL, speaker=VOICE, pace=round(spd, 2),
+                        speech_sample_rate=SR, output_audio_codec="wav")
+            req = urllib.request.Request("https://api.sarvam.ai/text-to-speech", data=json.dumps(body).encode(),
+                                         headers={"Content-Type": "application/json",
+                                                  "api-subscription-key": os.environ.get("SARVAM_API_KEY", "proxy-injected")})
+            with urllib.request.urlopen(req, timeout=120) as r:
+                wav = base64.b64decode("".join(json.load(r)["audios"]))
+            a, sr = sf.read(io.BytesIO(wav), dtype="float32")
+            return a if a.ndim == 1 else a.mean(1)
     rng = np.random.default_rng(7)
     audio, t, tl = [np.zeros(int(0.6 * SR))], 0.6, []
     prev_ev = None
@@ -104,7 +153,10 @@ def main():
             chunks = [c.strip() for c in sent.split("—")]
             if st["pre"]:
                 audio.append(np.zeros(int(st["pre"] * SR))); t += st["pre"]
-            spd = float(np.clip(st["speed"] * (1 + rng.uniform(-0.04, 0.04)), 0.9, 1.8))
+            spd = float(np.clip(st["speed"] * (1 + rng.uniform(-0.04, 0.04)), 0.6 if ENGINE == "sarvam" else 0.9, 1.8))
+            if ENGINE == "kokoro" and any(w in sent for w in HARD):
+                spd = round(spd * HARD_SLOW, 3)
+                if "🐢" not in st["marks"]: st["marks"].append("🐢")
             g = 10 ** ((st["gain"] + rng.uniform(-0.8, 0.8)) / 20)
             for c_i, c in enumerate(chunks):
                 if not c: continue

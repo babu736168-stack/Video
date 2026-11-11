@@ -59,8 +59,8 @@ class Graph:
         if a > 0.9:
             x, y = self.P(1.03, 0); d.polygon([(x, y - 9), (x + 18, y), (x, y + 9)], fill=WHITE + (220,))
             x, y = self.P(0, 1.03); d.polygon([(x - 9, y), (x, y - 18), (x + 9, y)], fill=WHITE + (220,))
-            txt(im, self.P(1.0, -0.08), "Quantity", F("Inter-SemiBold", 26), DIM, anchor="rm")
-            txt(im, (self.ox - 20, self.oy - self.h - 30), "Price (₹)", F("Inter-SemiBold", 26), DIM, anchor="lm")
+            txt(im, self.P(1.0, -0.08), "मात्रा", F("Inter-SemiBold", 26), DIM, anchor="rm")
+            txt(im, (self.ox - 20, self.oy - self.h - 30), "दाम (₹)", F("Inter-SemiBold", 26), DIM, anchor="lm")
 
     def line(self, d, f, q0, q1, u, col, width=6):
         n = 60; pts = []
@@ -93,7 +93,7 @@ S_inv = lambda p, s=0.0: (p - 0.12) / 0.76 + s
 
 
 def tag(im, d, xy, text, col, size=34, alpha=1.0):
-    f = F("InterDisplay-Black", size)
+    f = R.fit(F("InterDisplay-Black", size), text)
     w = f.getlength(text) + 36; x, y = xy
     d.rounded_rectangle((x - w / 2, y - size * 0.8, x + w / 2, y + size * 0.8), radius=14, fill=col + (int(235 * alpha),))
     txt(im, (x, y), text, f, (15, 15, 25), alpha=alpha, anchor="mm")
@@ -110,7 +110,7 @@ def a_icon(icon):
 def a_wish(im, d, box, a):
     x0, y0, x1, y1 = box; cx = (x0 + x1) / 2
     d.rounded_rectangle((cx - 60, y0 + 120, x1 - 60, y0 + 470), radius=24, outline=DIM + (160,), width=4)  # shop window
-    txt(im, (cx + 180, y0 + 95), "TOY SHOP", F("InterDisplay-Black", 34), DIM, anchor="mm")
+    txt(im, (cx + 180, y0 + 95), "खिलौने की दुकान", F("InterDisplay-Black", 34), DIM, anchor="mm")
     put(im, "🚗", (cx + 190, y0 + 330 + 6 * math.sin(a * 3)), 150, min(1, a * 2))
     kx = x0 + 70 + min(1, a / 1.5) * 170
     put(im, "🧒", (kx, y1 - 250), 230, 1)
@@ -127,7 +127,7 @@ def a_wish(im, d, box, a):
     s = (a - 5.0) / 0.4
     if s > 0:
         sc = 1.6 - 0.6 * ease_out(s)
-        sp = pill_sprite([("NOT DEMAND", "InterDisplay-Black", 64, RED)], RED, fill=(40, 10, 10), pad=(30, 14), border=6)
+        sp = pill_sprite([("डिमांड नहीं!", "InterDisplay-Black", 64, RED)], RED, fill=(40, 10, 10), pad=(30, 14), border=6)
         sp = sp.rotate(-12, expand=True, resample=Image.BICUBIC)
         paste_center(im, sp, (cx + 120, y0 + 560), sc, min(1, s * 2))
 
@@ -142,7 +142,7 @@ def a_mango(im, d, box, a):
         put(im, "🥭", (cx - 180 + (i % 5) * 90 + (45 if i >= 5 else 0), y1 - 360 - (40 if i >= 5 else 0)), 80)
     cheap = a > 3.2
     flip = ease_out((a - 3.2) / 0.4)
-    price = "₹60 / kg" if cheap else "₹200 / kg"
+    price = "₹60 किलो" if cheap else "₹200 किलो"
     col = GREEN if cheap else RED
     tag(im, d, (cx, y1 - 520), price, col, 54, 1.0 if not cheap else max(0.3, flip))
     # buyers: 2 at high price (walking away), 8 at low price (walking in)
@@ -383,10 +383,11 @@ class Film:
     # ---- board
     def layout(self, tid):
         if getattr(self, "_bl", (None,))[0] == tid: return self._bl[1]
-        X0, X1, fs, gap, HMAX = 1190, 1860, 30, 26, 820
+        X0, X1, gap, HMAX = 1190, 1860, 26, 820
         rows = []
         for te, kind, text in self.points.get(tid, []):
             head, _, sub = text.partition("|")
+            fs = 34 if R.is_deva(text) else 30          # Devanagari reads smaller at the same size
             hf = F("Inter-SemiBold" if kind == "pt" else "Inter-MediumItalic", fs)
             tw = X1 - X0 - (70 if kind == "ex" else 0)
             hl = wrap(head, hf, tw); sl = wrap(sub, F("Inter-Regular", int(fs * 0.85)), tw) if sub else []
@@ -464,9 +465,9 @@ class Film:
             x = 120 + (k * 137) % 1700; y = ((t * 90 + k * 211) % 1300) - 150
             put(im, "🍅", (x, y), 60 + (k % 3) * 20, 0.25)
         l1, l2 = C["hook_en"].split("\n")
-        f = F("InterDisplay-Black", 76)
         k = 0
         for ln, col, yy in ((l1, WHITE, 300), (l2, GOLD, 410)):
+            f = R.fit(F("InterDisplay-Black", 76), ln)
             x = 960 - f.getlength(ln) / 2
             for w in ln.split():
                 a = ease_out((t - (0.5 + k * 0.3)) / 0.4)
@@ -476,7 +477,7 @@ class Film:
         a = ease_out((t - 5.0) / 0.8)
         if a > 0:
             cheap = int(t * 1.2) % 2 == 0
-            tag(im, d, (960, 640), "₹20 / kg" if cheap else "₹200 / kg", GREEN if cheap else RED, 64, a)
+            tag(im, d, (960, 640), "₹20 किलो" if cheap else "₹200 किलो", GREEN if cheap else RED, 64, a)
             put(im, "🍅", (720, 640), 120, a); put(im, "🍅", (1200, 640), 120, a)
         a = ease_out((t - 7.0) / 0.8)
         if a > 0: txt(im, (960, 800), C["hook_hi"], F("deva", 46), DIM, alpha=a, anchor="mm")

@@ -25,12 +25,33 @@ CENTER = (120, 160, 255)
 _fc = {}
 
 
+_fname = {}
+DEVA_DIR = os.path.dirname(DEVA) + "/NotoSansDevanagari-"
+
+
 def F(name, size):
     k = (name, size)
     if k not in _fc:
-        path = DEVA if name == "deva" else INTER + name + ".otf"
+        if name == "deva": path = DEVA
+        elif name.startswith("deva-"): path = DEVA_DIR + name[5:] + ".ttf"
+        else: path = INTER + name + ".otf"
         _fc[k] = ImageFont.truetype(path, size)
+        _fname[id(_fc[k])] = k
     return _fc[k]
+
+
+def is_deva(text):
+    return any("\u0900" <= ch <= "\u097f" for ch in text)
+
+
+def fit(font, text):
+    """Inter has no Devanagari: for Hindi text swap to Noto Sans Devanagari of a similar weight, same size."""
+    k = _fname.get(id(font))
+    if not k or not is_deva(text) or k[0].startswith("deva"): return font
+    n = k[0]
+    w = ("Black" if "Black" in n else "Bold" if "Bold" in n and "Semi" not in n else
+         "SemiBold" if "SemiBold" in n else "Medium" if "Medium" in n else "Regular")
+    return F("deva-" + w, k[1])
 
 
 def ease(x):
@@ -50,6 +71,7 @@ def lerp(a, b, u):
 
 
 def wrap(text, font, width):
+    font = fit(font, text)
     out, cur = [], ""
     for w in text.split():
         t = (cur + " " + w).strip()
@@ -95,6 +117,7 @@ def with_alpha(im, a):
 def txt(base, xy, text, font, fill, alpha=1.0, anchor="la"):
     """Alpha-blended text (ImageDraw ignores fill alpha for text on RGB images)."""
     if alpha <= 0.01: return
+    font = fit(font, text)
     if alpha >= 0.999 and len(fill) == 3:
         ImageDraw.Draw(base).text(xy, text, font=font, fill=fill, anchor=anchor); return
     a = (fill[3] / 255 if len(fill) == 4 else 1) * alpha
@@ -108,6 +131,7 @@ def txt(base, xy, text, font, fill, alpha=1.0, anchor="la"):
 def glow_text(base, xy, text, font, fill, glow=None, anchor="la", alpha=1.0, radius=10):
     """Text with a soft glow, alpha-blended onto base (RGB)."""
     x, y = xy
+    font = fit(font, text)
     bb = ImageDraw.Draw(base).textbbox((x, y), text, font=font, anchor=anchor)
     pad = radius * 3
     box = (int(bb[0] - pad), int(bb[1] - pad), int(bb[2] + pad), int(bb[3] + pad))
@@ -123,7 +147,7 @@ def glow_text(base, xy, text, font, fill, glow=None, anchor="la", alpha=1.0, rad
 # ------------------------------------------------------------------ node sprites
 def pill_sprite(lines, accent, w=None, h=None, pad=(26, 14), fill=(20, 29, 58), border=2, glow=False):
     """lines: [(text, fontname, size, color)] centred. Returns RGBA sprite."""
-    ws = [F(f, s).getlength(t) for t, f, s, c in lines]
+    ws = [fit(F(f, s), t).getlength(t) for t, f, s, c in lines]
     hs = [s * 1.25 for t, f, s, c in lines]
     w = w or int(max(ws) + 2 * pad[0]); h = h or int(sum(hs) + 2 * pad[1])
     G = 40 if glow else 0
@@ -135,7 +159,7 @@ def pill_sprite(lines, accent, w=None, h=None, pad=(26, 14), fill=(20, 29, 58), 
     d.rounded_rectangle((G, G, G + w - 1, G + h - 1), radius=min(h // 2, 40), fill=fill + (245,), outline=accent + (255,), width=border)
     y = G + (h - sum(hs)) / 2
     for (t, f, s, c), hh in zip(lines, hs):
-        d.text((G + w / 2, y + hh / 2), t, font=F(f, s), fill=c + (255,), anchor="mm"); y += hh
+        d.text((G + w / 2, y + hh / 2), t, font=fit(F(f, s), t), fill=c + (255,), anchor="mm"); y += hh
     return im
 
 

@@ -68,27 +68,26 @@ Paste this whole file into a new Claude Code chat, then say what to do next
   | ज़, फ़ | জ়, ফ় |
   | ड़, ढ़ | ড়, ঢ় |
 
-## 6. ⚠️ Pending issues (my latest feedback, not yet fixed)
-1. **"Some words are not pronounced clearly."**
-   A Whisper speech-recognition check of the hf_alpha 1.4× narration showed these problems:
+## 6. Status of the two issues (fixed 2026-11-11, waiting for feedback)
+1. **Unclear words.** The cause was espeak's Hindi spelling-to-sound rules inside Kokoro.
+   `polity/voice.py` now has:
+   - `SAY_PH`: corrected sounds for डिमांड, ख़रीद/ख़रीदते/ख़रीदना, ख़र्च, मतलब, पहली (TTS only; screen and script unchanged);
+   - `HARD`: lines with hard words are spoken at 0.9× of their speed;
+   - `ACRONYMS`: एन सी ई आर टी is spoken letter by letter with short gaps.
 
-   | Written | Heard as |
-   |---|---|
-   | डिमांड | "दिमान" |
-   | टमाटर | "तमाटर" |
-   | ख़रीदते | "रहीते" |
-   | बढ़ा | "बराज" |
-   | पहली | "पली" |
-   | मतलब | "मतलप" |
-   | एन सी ई आर टी | "इन्सी ए आर्टी" |
+   Whisper check after the fix: पहली ✓, मतलब ✓, ख़रीदते "रहीते" → "खरीते", डिमांड "दिमान" → "दिमान्द",
+   NCERT letters now separate. Still weak: hf_alpha makes ट/ड sound like त/द (टमाटर → "तमाटर"), a limit of the
+   voice itself; corrected sounds did not help. Sarvam (below) is the likely real fix.
+2. **Screen text now matches speech.** Points, 💡 examples, recap, outro, hook and the stage labels in
+   `econ/ds_2min.py` / `render_econ.py` are the spoken Hinglish phrases in Devanagari.
+   `polity/render.py` swaps to Noto Sans Devanagari (same size, similar weight) whenever text is Hindi.
+   Fonts: `/usr/local/share/fonts/noto/NotoSansDevanagari-{Black,Bold,SemiBold,Medium,Regular}.ttf`
+   from raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansDevanagari/hinted/ttf/.
 
-   Plan:
-   - respell the problem words in the TTS text only (e.g. "डि-मांड", keeping the original spelling on screen and in the script);
-   - slow the hard words or the whole line slightly;
-   - re-check with the Whisper test until they come through clearly.
-2. **"Speaking and writing is not matching"**, meaning **the points on screen**. They are short English notes while the voice speaks Hindi. They must show **the same words that are spoken, in Hinglish (Devanagari)**: the key phrase of each spoken line, exactly as said.
-
-Then re-send the 2-minute sample (`Econ01 - Demand and Supply (2-min sample).mp4`) and its recording script.
+**Sarvam voice (user wants it):** `ENGINE=sarvam python3 ../polity/voice.py ds_2min`
+(defaults: `VOICE=ritu_hi_edtech`, `SARVAM_MODEL=bulbul:v4-flash`, `BASE=1.0`; pace range 0.5–2.0).
+The key saved in the cloud environment for api.sarvam.ai was rejected (403 invalid_api_key_error) on 2026-11-11;
+a new key from indus.sarvam.ai/key-management is needed.
 
 ## 7. What exists (repo `babu736168-stack/Video`, branch `ccr-a809289b-ssj04s`, all pushed)
 - `polity/`

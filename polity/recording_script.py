@@ -71,8 +71,10 @@ def main():
     S = importlib.import_module(mod)
     TL = json.load(open(os.path.join(HERE, "out", mod, "timeline.json")))
     C = S.CHAPTER
-    out = [f"# Ch{C['num']:02d} – {C['title']}: recording script", "",
-           "Laxmikanth, *Indian Polity*, 6th edition. Hindi narration written in Bengali letters (transliteration, not translation).",
+    econ = "ECONOMICS" in C.get("kicker", "")
+    src = ("NCERT and Ramesh Singh, *Indian Economy*." if econ else "Laxmikanth, *Indian Polity*, 6th edition.")
+    out = [f"# {'Econ' if econ else 'Ch'}{C['num']:02d} – {C['title']}: recording script", "",
+           src + " Hindi narration written in Bengali letters (transliteration, not translation).",
            f"{len(TL['lines'])} clips · about {TL['total'] / 60:.1f} minutes with the synthetic voice.", "", LEGEND, "", "## Clips", ""]
     state = dict(screen="")
     for l in TL["lines"]:

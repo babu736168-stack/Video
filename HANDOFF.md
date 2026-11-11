@@ -117,6 +117,18 @@ Whisper small is not a reliable judge of ट/ड for any voice (it mishears Sarv
   (classes stay music-free after the earlier "vibrating" complaint); music ducked ~13 dB under speech.
   Word check on the final mix: 19/19 lines, no missing word.
 
+## 6d. Full class Econ01 (2026-11-11): "Econ01 - The Story of Village Palampur.mp4" (11:51)
+- `econ/econ01_palampur.py`: full NCERT Class 9 Ch 1 (facts listed in its docstring), 7 topics, two bar charts
+  (CHAPTER["bars"], `anim:<name>`; `anim:none` returns to the emoji stage), recap, next-class teaser, and the
+  channel end screen (event `end`; CHAPTER logo/channel/next_title; logo at `econ/assets/visualmind_logo.png`).
+- Channel: **The VisualMind**, tagline "See it. Understand it. Remember it." Every class ends with that screen.
+- Word check: 97/97 lines, no missing word (line 82 "ताँगा" transcribed as "टांगा"; user to listen).
+- NCERT PDFs: ncert.nic.in is allowed in the environment; its TLS chain lacks the Let's Encrypt YE1 intermediate
+  (get int-ye1.pem from raw.githubusercontent.com/letsencrypt/website/main/static/certs/gen-y/). The chapter PDF URL
+  `textbook/pdf/iess201.pdf` returned 404 to scripted requests, so facts are from the chapter as known; numbers to
+  verify in the user's copy: 75%/25%, 200 ha by mid-1970s, 1300/3200 kg/ha, 150/240/60 families, Savita 24% 4 months,
+  fewer than 50 in manufacturing.
+
 ## 7. What exists (repo `babu736168-stack/Video`, branch `ccr-a809289b-ssj04s`, all pushed)
 - `polity/`
   - `ch01_script.py`: the full Ch01 narration so far (hook, map, 1600–1858 background, Regulating Act 1773, Act of Settlement 1781, Pitt's India Act 1784, recap).

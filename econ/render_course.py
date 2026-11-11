@@ -32,7 +32,9 @@ class Course(Film):
         self.t_center = self.t_of("center") or 0
         self.t_agenda = next((t for t, e in self.ev if e.startswith("agenda")), None)
         self.sections = sorted([l["start"] for l in self.lines if (l["ev"] or "").startswith(
-            ("hook", "agenda", "center", "focus", "recap", "outro"))] + [1e9])
+            ("hook", "agenda", "center", "focus", "recap", "outro", "end"))] + [1e9])
+        self.t_end = next((t for t, e in self.ev if e == "end"), None)
+        self._logo = None
 
     def kw_between(self, t0, t1):
         return [k for k in self.kws if t0 <= k["t"] < t1 and k["label"]]
@@ -132,7 +134,10 @@ class Course(Film):
         d.rounded_rectangle(box, radius=30, fill=(16, 24, 50, int(235 * u)), outline=ACC + (int(120 * u),), width=2)
         tf = next(f for f, x in self.focus_list if x == tid)
         anims = [(ta, n) for ta, n in self.anims.get(tid, []) if ta <= t]
-        if anims:
+        bars = self.S.CHAPTER.get("bars", {})
+        if anims and anims[-1][1] in bars:
+            ta, name = anims[-1]; self.bars(im, d, box, t, ta, bars[name])
+        elif anims and anims[-1][1] != "none":
             ta, name = anims[-1]; ANIMS[name](im, d, box, t - ta)
         else:
             self.stage(im, d, box, t, tid, tf)
@@ -153,6 +158,58 @@ class Course(Film):
                 if it["emoji"]: put(im, it["emoji"], (tx + (it["ew"] - 12) / 2, y + 32), int(40 * sc), a); tx += it["ew"]
                 txt(im, (tx, y + 32), it["text"], it["f"], WHITE if it["kind"] == "pt" else (255, 225, 160), alpha=a, anchor="lm")
         return im
+
+    def bars(self, im, d, box, t, ta, spec):
+        """Bar chart on the stage: bar i grows when the i-th key word after the chart starts is spoken."""
+        x0, y0, x1, y1 = box
+        txt(im, ((x0 + x1) / 2, y0 + 70), spec["title"], F("InterDisplay-Bold", 40), WHITE, anchor="mm")
+        ks = [k for k in self.kws if k["t"] >= ta - 0.05 and k["label"]][:len(spec["bars"])]
+        vmax = max(v for _, v, _ in spec["bars"])
+        n = len(spec["bars"]); bw = min(240, (x1 - x0 - 200) / n - 60)
+        base = y1 - 140; hmax = y1 - y0 - 330
+        d.line([(x0 + 80, base), (x1 - 80, base)], fill=WHITE + (200,), width=4)
+        for i, (lab, v, col) in enumerate(spec["bars"]):
+            tk = ks[i]["t"] if i < len(ks) else 1e9
+            u = ease_out((t - tk) / 0.8)
+            cx = x0 + 100 + (i + 0.5) * (x1 - x0 - 200) / n
+            h = hmax * v / vmax * u
+            if u > 0:
+                d.rounded_rectangle((cx - bw / 2, base - h, cx + bw / 2, base), radius=16, fill=col + (255,))
+                txt(im, (cx, base - h - 40), f"{int(round(v * u)):,}", F("InterDisplay-Black", 54), col, anchor="mm")
+            txt(im, (cx, base + 50), lab, F("InterDisplay-Bold", 32), WHITE if u > 0 else DIM, anchor="mm")
+
+    def draw_end(self, t):
+        """Channel end screen: logo, tagline words as they are spoken, next-class card."""
+        im = E.BG.copy(); d = ImageDraw.Draw(im, "RGBA")
+        C = self.S.CHAPTER
+        if self._logo is None:
+            lg = Image.open(os.path.join(E.HERE, C["logo"])).convert("RGBA")
+            sz = 520; lg = lg.resize((sz, sz), Image.LANCZOS)
+            m = Image.new("L", (sz, sz), 0); ImageDraw.Draw(m).ellipse((4, 4, sz - 4, sz - 4), fill=255)
+            lg.putalpha(m); self._logo = lg
+        a = ease_out((t - self.t_end) / 0.7)
+        pul = 0.5 + 0.5 * math.sin(t * 2.5)
+        r = 290 + 10 * pul
+        for w_, al in ((26, 0.18), (14, 0.35), (6, 1.0)):                          # soft glowing gold ring
+            d.ellipse((960 - r, 420 - r, 960 + r, 420 + r), outline=GOLD + (int(255 * al * a * (0.7 + 0.3 * pul)),), width=w_)
+        paste_center(im, self._logo, (960, 420), 0.85 + 0.15 * back((t - self.t_end) / 0.7), a)
+        ks = [k for k in self.kws if k["t"] >= self.t_end and k["label"] and k["label"] != C.get("channel")]
+        ft = F("InterDisplay-Black", 58); gap = 60
+        widths = [ft.getlength(k["label"]) for k in ks]
+        x = 960 - (sum(widths) + gap * (len(ks) - 1)) / 2
+        for j, k in enumerate(ks):
+            u = ease_out((t - k["t"]) / 0.35)
+            cx = x + widths[j] / 2; x += widths[j] + gap
+            if u <= 0: continue
+            glow_text(im, (cx, 790 + 20 * (1 - u)), k["label"], ft, (GOLD, WHITE, (70, 210, 140))[j % 3],
+                      glow=GOLD if j == 0 else None, anchor="mm", alpha=u, radius=10)
+        nt = C.get("next_title")
+        if nt:
+            u = ease_out((t - self.t_end - 0.4) / 0.6)
+            d.rounded_rectangle((560, 900, 1360, 1010), radius=55, fill=(22, 32, 64, int(235 * u)), outline=ACC + (int(200 * u),), width=3)
+            txt(im, (960, 955), "▶  " + nt, F("InterDisplay-Bold", 38), WHITE, alpha=u, anchor="mm")
+        f = ease((t - (self.total - 1.0)) / 1.0)
+        return Image.blend(im, Image.new("RGB", (W, H)), f) if f > 0 else im
 
     def stage(self, im, d, box, t, tid, tf):
         """No hand-made animation: the topic's emoji pop onto the stage as their words are spoken."""
@@ -189,6 +246,9 @@ class Course(Film):
         return im
 
     def frame(self, t):
+        if self.t_end is not None and t >= self.t_end:
+            u = ease((t - self.t_end) / 0.7); im = self.draw_end(t)
+            return Image.blend(self.draw_outro(t), im, u) if u < 1 else im
         if self.t_agenda is not None and self.t_agenda <= t < self.t_center:
             u = ease((t - self.t_agenda) / 0.7); im = self.draw_agenda(t)
             return Image.blend(self.draw_hook(t), im, u) if u < 1 else im

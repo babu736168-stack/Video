@@ -28,9 +28,20 @@ _fc = {}
 def F(name, size):
     k = (name, size)
     if k not in _fc:
-        path = DEVA if name == "deva" else INTER + name + ".otf"
+        if name == "deva": path = DEVA
+        elif name.startswith("deva-"): path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts", f"NotoSansDevanagari-{name[5:]}.ttf")
+        else: path = INTER + name + ".otf"
         _fc[k] = ImageFont.truetype(path, size)
     return _fc[k]
+
+
+def is_deva(text):
+    return any("\u0900" <= c <= "\u097F" for c in text)
+
+
+def pick(text, latin, deva="deva-SemiBold"):
+    """Font for this text: a Devanagari face when it contains Hindi."""
+    return deva if is_deva(text) else latin
 
 
 def ease(x):

@@ -13,7 +13,7 @@ from PIL import Image, ImageDraw, ImageFont
 HERE = os.getcwd(); sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "polity"))
 import render as R                      # polity renderer: fonts, easing, text, sprites, audio mix
-from render import F, ease, ease_out, back, lerp, wrap, txt, glow_text, pill_sprite, paste_center, curve, make_bg
+from render import F, pick, is_deva, ease, ease_out, back, lerp, wrap, txt, glow_text, pill_sprite, paste_center, curve, make_bg
 
 W, H, FPS = R.W, R.H, R.FPS
 WHITE, DIM, GOLD, AMBER = R.WHITE, R.DIM, R.GOLD, R.AMBER
@@ -387,11 +387,13 @@ class Film:
         rows = []
         for te, kind, text in self.points.get(tid, []):
             head, _, sub = text.partition("|")
-            hf = F("Inter-SemiBold" if kind == "pt" else "Inter-MediumItalic", fs)
+            hfn = pick(head, "Inter-SemiBold" if kind == "pt" else "Inter-MediumItalic", "deva-SemiBold" if kind == "pt" else "deva-Medium")
+            sfn = pick(sub, "Inter-Regular", "deva-Medium")
+            lh = 1.5 if is_deva(head) else 1.3
             tw = X1 - X0 - (70 if kind == "ex" else 0)
-            hl = wrap(head, hf, tw); sl = wrap(sub, F("Inter-Regular", int(fs * 0.85)), tw) if sub else []
-            rows.append(dict(t=te, kind=kind, hl=hl, sl=sl, fs=fs,
-                             h=len(hl) * fs * 1.3 + len(sl) * fs * 0.85 * 1.3 + (22 if kind == "ex" else 0)))
+            hl = wrap(head, F(hfn, fs), tw); sl = wrap(sub, F(sfn, int(fs * 0.85)), tw) if sub else []
+            rows.append(dict(t=te, kind=kind, hl=hl, sl=sl, fs=fs, hfn=hfn, sfn=sfn, lh=lh,
+                             h=len(hl) * fs * lh + len(sl) * fs * 0.85 * lh + (22 if kind == "ex" else 0)))
         pages, cur, hh = [], [], 0
         for r in rows:
             if cur and hh + gap + r["h"] > HMAX: pages.append(cur); cur, hh = [], 0
@@ -451,9 +453,9 @@ class Film:
             newest = k == len(shown) - 1 and fade == 1.0
             hc = (255, 225, 160) if r["kind"] == "ex" else (WHITE if newest else (200, 210, 238))
             for ln in r["hl"]:
-                txt(im, (x, y), ln, F("Inter-SemiBold" if r["kind"] == "pt" else "Inter-MediumItalic", fs), hc, alpha=ta); y += fs * 1.3
+                txt(im, (x, y), ln, F(r["hfn"], fs), hc, alpha=ta); y += fs * r["lh"]
             for ln in r["sl"]:
-                txt(im, (x, y), ln, F("Inter-Regular", int(fs * 0.85)), DIM, alpha=ta); y += fs * 0.85 * 1.3
+                txt(im, (x, y), ln, F(r["sfn"], int(fs * 0.85)), DIM, alpha=ta); y += fs * 0.85 * r["lh"]
 
     # ---- hook / recap / outro
     def draw_hook(self, t):
@@ -496,7 +498,7 @@ class Film:
             d.rounded_rectangle((x - 20, y, 1680, y + 130), radius=30, fill=(22, 32, 64, int(230 * u)), outline=ACC + (int(150 * u),), width=2)
             put(im, tp["icon"], (x + 60, y + 65), 80, u)
             txt(im, (x + 140, y + 22), tp["name"], F("InterDisplay-Bold", 40), WHITE, alpha=u)
-            txt(im, (x + 140, y + 78), body, F("Inter-Medium", 28), DIM, alpha=u)
+            txt(im, (x + 140, y + 74), body, F(pick(body, "Inter-Medium", "deva-Medium"), 30), DIM, alpha=u)
             y += 160
         return im
 
@@ -507,7 +509,7 @@ class Film:
         a = ease_out((t - self.t_outro - 0.5) / 0.6)
         otext = next(e for _, e in self.ev if e.startswith("outro:")).split(":", 1)[1]
         d.rectangle((0, 940, W, 1080), fill=(5, 8, 18, int(220 * a)))
-        glow_text(im, (960, 1010), otext, F("InterDisplay-Black", 54), GOLD, glow=GOLD, anchor="mm", alpha=a, radius=10)
+        glow_text(im, (960, 1010), otext, F(pick(otext, "InterDisplay-Black", "deva-Bold"), 50), GOLD, glow=GOLD, anchor="mm", alpha=a, radius=10)
         # salt vs smartphone teaser
         b = ease_out((t - self.t_outro - 2) / 0.6)
         if b > 0:

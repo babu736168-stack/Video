@@ -315,6 +315,18 @@ class Course(Film):
         return im
 
     def frame(self, t):
+        im = self.frame_inner(t)
+        # channel logo in the corner of every screen (the end screen already shows it big)
+        if self.S.CHAPTER.get("logo") and not (self.t_end is not None and t >= self.t_end + 0.7):
+            if getattr(self, "_bug", None) is None:
+                lg = Image.open(os.path.join(E.HERE, self.S.CHAPTER["logo"])).convert("RGBA")
+                sz = 104; lg = lg.resize((sz, sz), Image.LANCZOS)
+                m = Image.new("L", (sz, sz), 0); ImageDraw.Draw(m).ellipse((2, 2, sz - 2, sz - 2), fill=255)
+                lg.putalpha(m.point(lambda v: int(v * 0.92))); self._bug = lg
+            im = im.copy(); im.paste(self._bug, (W - 104 - 22, H - 104 - 22), self._bug)
+        return im
+
+    def frame_inner(self, t):
         if self.t_master is not None and self.t_master <= t < (self.t_today or 1e9):
             u = ease((t - self.t_master) / 0.6); im = self.draw_master(t)
             return Image.blend(self.draw_hook(t), im, u) if u < 1 else im

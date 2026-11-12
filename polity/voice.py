@@ -36,6 +36,7 @@ HARD_SLOW = 0.9
 # Letter-by-letter abbreviations: each letter is its own small clip with a short gap.
 ACRONYMS = ("एन सी ई आर टी",)
 TAKE = [0]
+SPLIT_COMMAS = os.environ.get("SPLIT_COMMAS", "1" if ENGINE == "sarvam" else "0") == "1"
 # excitement per delivery: (pitch lift, intonation spread)
 PITCH = {"🔊": (1.07, 1.25), "🐢": (1.03, 1.15), "🔉": (1.0, 1.05), "": (1.05, 1.2)}
 
@@ -228,7 +229,14 @@ def main():
         start = t; rec = []
         for j, sent in enumerate(sentences(text)):
             st = style(sent, tags, j == 0)
-            chunks = [c.strip() for c in sent.split("—")]
+            # pieces: split at "—" (short breath) and, for exact on-screen timing, also after commas
+            # (each comma part is its own clip, so a key word's time is known within a few words)
+            chunks, gaps = [], []
+            for d_i, c in enumerate(sent.split("—")):
+                parts = re.split(r"(?<=,)\s+", c.strip()) if SPLIT_COMMAS else [c.strip()]
+                for p_i, part in enumerate(parts):
+                    chunks.append(part)
+                    gaps.append(0.12 if p_i + 1 < len(parts) else 0.22)
             if st["pre"]:
                 audio.append(np.zeros(int(st["pre"] * SR))); t += st["pre"]
             spd = float(np.clip(st["speed"] * (1 + rng.uniform(-0.04, 0.04)), 0.6 if ENGINE == "sarvam" else 0.9, 1.8))
@@ -242,7 +250,7 @@ def main():
                 wtimes += [t + x for x in word_starts(a, toks(c))]
                 audio.append(a); t += len(a) / SR
                 if c_i + 1 < len(chunks):
-                    b = 0.22 + rng.uniform(-0.04, 0.05)
+                    b = gaps[c_i] + rng.uniform(-0.03, 0.04)
                     audio.append(np.zeros(int(b * SR))); t += b
             post = st["post"] + rng.uniform(-0.05, 0.08)
             audio.append(np.zeros(int(post * SR))); t += post

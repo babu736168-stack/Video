@@ -1,7 +1,6 @@
 """Ch01 - Introduction to Economics: one full video for Ramesh Singh, Indian Economy (18e), Chapter 1 only.
 Hinglish narration (Hindi sentences, everyday English terms), at the user's request. Opens with a welcome and a
-subscribe request, then a master overview of how the whole syllabus (22 chapters, 6 parts, one full video per
-chapter) will be completed, then today's chapter. Ends with the channel, the next class, like / share / subscribe.
+subscribe request, then a master mind map of the whole book (all 22 chapters, one class per chapter), then today's chapter. Ends with the channel, the next class, like / share / subscribe.
 DRAFT: topic list from chapter summaries of Ramesh Singh Ch 1 (definitions; economy; micro and macro, economic
 agents; production, consumption, distribution; capitalist / market, state (socialist, communist) and mixed economies
 with features, merits and demerits; capitalism's failure in the Great Depression; Washington, Beijing and Santiago
@@ -42,19 +41,19 @@ LINES = [
 
     # ---------------------------------------------------------------- master plan
     (None, "[scene] आज से हम शुरू कर रहे हैं — एक बड़ा सफ़र। {रमेश सिंह की इंडियन इकॉनमी|Ramesh Singh ki Indian Economy|📘}, अठारहवाँ एडिशन — पूरी किताब, शुरू से आख़िर तक!"),
-    (None, "कुल {बाईस चैप्टर|22 Chapters|📚}। और हर चैप्टर का — {एक फ़ुल वीडियो|Ek full video|🎬}।"),
-    (None, "इन बाईस चैप्टर्स को, हमने {छह पार्ट्स|6 Parts|🗺️} में बाँटा है।"),
-    (None, "पार्ट वन — {नींव|Neev|🧱}। इंट्रोडक्शन, नेशनल इनकम, और ग्रोथ, डेवलपमेंट, हैप्पीनेस।"),
-    (None, "पार्ट टू — {भारत का सफ़र|Bharat ka Safar|🇮🇳}। इंडियन इकॉनमी का इवोल्यूशन, प्लानिंग, और इकॉनॉमिक रिफ़ॉर्म्स।"),
-    (None, "पार्ट थ्री — {दाम और सेक्टर्स|Daam aur Sectors|🏭}। इन्फ़्लेशन, एग्रीकल्चर, इंडस्ट्री, और सर्विसेज़।"),
-    (None, "पार्ट फ़ोर — {पैसा और बाज़ार|Paisa aur Bazaar|💰}। फ़ाइनेंशियल मार्केट, बैंकिंग, इंश्योरेंस, और शेयर मार्केट।"),
-    (None, "पार्ट फ़ाइव — {दुनिया और सरकार|Duniya aur Sarkar|🌍}। एक्सटर्नल सेक्टर, इंटरनेशनल ऑर्गनाइज़ेशन्स, टैक्स, और पब्लिक फ़ाइनेंस।"),
-    (None, "और पार्ट सिक्स — {समाज और भविष्य|Samaj aur Bhavishya|🌱}। क्लाइमेट चेंज, ह्यूमन डेवलपमेंट, और बर्निंग इश्यूज़।"),
-    (None, "हर वीडियो में — पहले {कहानी|Kahani|📖}, फिर {कॉन्सेप्ट|Concept|💡}, फिर {एग्ज़ाम्पल|Example|🛒}, और आख़िर में {रीकैप|Recap|✅}।"),
-    (None, "[punch] और पूरा मैप एक साथ देखना हो — तो {सिलेबस रोडमैप|Syllabus Roadmap|🗺️} वीडियो का लिंक, डिस्क्रिप्शन में है!"),
+    (None, "कुल {बाईस चैप्टर|22 Chapters|📚}। और हर चैप्टर की — {एक क्लास|Ek chapter, ek class|🎬}।"),
+    ("master", "[name] तो ये रहा, पूरी किताब का मैप!"),
+    (None, "वन — {इंट्रोडक्शन टू इकॉनॉमिक्स|1. Introduction to Economics|📘}। टू — {नेशनल इनकम|2. National Income|💹}। थ्री — {ग्रोथ, डेवलपमेंट एंड हैप्पीनेस|3. Growth, Development & Happiness|😊}।"),
+    (None, "फ़ोर — {इवोल्यूशन ऑफ़ द इंडियन इकॉनमी|4. Evolution of the Indian Economy|🕰️}। फ़ाइव — {इकॉनॉमिक प्लानिंग|5. Economic Planning|📝}। सिक्स — {प्लानिंग इन इंडिया|6. Planning in India|🏛️}। सेवन — {इकॉनॉमिक रिफ़ॉर्म्स|7. Economic Reforms|🔓}।"),
+    (None, "एट — {इन्फ़्लेशन एंड बिज़नेस साइकिल|8. Inflation & Business Cycle|🔥}। नाइन — {एग्रीकल्चर एंड फ़ूड मैनेजमेंट|9. Agriculture & Food Management|🌾}। टेन — {इंडस्ट्री एंड इंफ़्रास्ट्रक्चर|10. Industry & Infrastructure|🏭}। इलेवन — {सर्विसेज़ सेक्टर|11. Services Sector|💻}।"),
+    (None, "ट्वेल्व — {इंडियन फ़ाइनेंशियल मार्केट|12. Indian Financial Market|📊}। थर्टीन — {बैंकिंग इन इंडिया|13. Banking in India|🏦}। फ़ोर्टीन — {इंश्योरेंस इन इंडिया|14. Insurance in India|☂️}। फ़िफ़्टीन — {सिक्योरिटी मार्केट इन इंडिया|15. Security Market in India|📈}।"),
+    (None, "सिक्सटीन — {एक्सटर्नल सेक्टर इन इंडिया|16. External Sector in India|🌐}। सेवेंटीन — {इंटरनेशनल इकॉनॉमिक ऑर्गनाइज़ेशन्स एंड इंडिया|17. International Economic Organisations & India|🌍}। एटीन — {टैक्स स्ट्रक्चर इन इंडिया|18. Tax Structure in India|🧾}। नाइनटीन — {पब्लिक फ़ाइनेंस इन इंडिया|19. Public Finance in India|💰}।"),
+    (None, "ट्वेंटी — {सस्टेनेबिलिटी एंड क्लाइमेट चेंज|20. Sustainability & Climate Change|🌱}। ट्वेंटी वन — {ह्यूमन डेवलपमेंट इन इंडिया|21. Human Development in India|🎓}। और ट्वेंटी टू — {बर्निंग सोशियो-इकॉनॉमिक इश्यूज़|22. Burning Socio-Economic Issues|🔥}।"),
+    (None, "हर क्लास में — पहले {कहानी|Kahani|📖}, फिर {कॉन्सेप्ट|Concept|💡}, फिर {एग्ज़ाम्पल|Example|🛒}, और आख़िर में {रीकैप|Recap|✅}।"),
+    (None, "[punch] बाईस क्लास — और पूरी किताब ख़त्म! और आज — {चैप्टर वन|Chapter 1|📘}!"),
 
     # ---------------------------------------------------------------- today's hook
-    (None, "[scene] तो चलिए — आज से शुरुआत! और शुरुआत, एक सवाल से।"),
+    ("today", "[scene] तो चलिए — आज से शुरुआत! और शुरुआत, एक सवाल से।"),
     (None, "सोचिए — आपकी पॉकेट में {सौ रुपये|₹100|💵} हैं। सामने — एक {पिज़्ज़ा|Pizza|🍕}, एक {मूवी टिकट|Movie ticket|🎬}, और एक नई {बुक|Book|📖}।"),
     (None, "तीनों चाहिए — लेकिन पैसा, सिर्फ़ एक के लिए!"),
     (None, "[punch] यानी — {चॉइस|Choice|🤔} करनी पड़ेगी!"),

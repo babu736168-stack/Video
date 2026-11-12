@@ -32,8 +32,10 @@ class Course(Film):
         self.t_center = self.t_of("center") or 0
         self.t_agenda = next((t for t, e in self.ev if e.startswith("agenda")), None)
         self.sections = sorted([l["start"] for l in self.lines if (l["ev"] or "").startswith(
-            ("hook", "agenda", "center", "focus", "recap", "outro", "end"))] + [1e9])
+            ("hook", "agenda", "center", "focus", "recap", "outro", "end", "master", "today"))] + [1e9])
         self.t_end = next((t for t, e in self.ev if e == "end"), None)
+        self.t_master = next((t for t, e in self.ev if e == "master"), None)     # whole-book mind map
+        self.t_today = next((t for t, e in self.ev if e == "today"), None)       # back to today's hook
         self._logo = None
 
     def kw_between(self, t0, t1):
@@ -50,7 +52,11 @@ class Course(Film):
             x = 120 + (k * 137) % 1700; y = ((t * 90 + k * 211) % 1300) - 150
             put(im, C.get("rain", "✨"), (x, y), 60 + (k % 3) * 20, 0.18)
         end = self.t_agenda if self.t_agenda is not None else self.t_center
-        ks = self.kw_between(0, end)
+        start = 0
+        if self.t_master is not None:
+            if t < self.t_master: end = self.t_master
+            elif self.t_today is not None: start = self.t_today
+        ks = self.kw_between(start, end)
         shown = [k for k in ks if t >= k["t"]][-4:]
         y0 = 540 - 75 * (len(shown) - 1)
         for j, k in enumerate(shown):
@@ -266,7 +272,54 @@ class Course(Film):
             txt(im, (x + 170, y + 52), k["label"], F("InterDisplay-Bold", 44), WHITE, alpha=u, anchor="lm")
         return im
 
+    def draw_master(self, t):
+        """The whole book as one mind map: the book in the centre, chapters 1-11 on the left, 12-22 on the right.
+        Each chapter appears when its name is spoken; today's chapter glows at the end."""
+        im = E.BG.copy(); d = ImageDraw.Draw(im, "RGBA")
+        t1 = self.t_today if self.t_today is not None else 1e9
+        ks = [k for k in self.kw_between(self.t_master, t1) if k["label"][:1].isdigit() and ". " in k["label"]]
+        today = next((k for k in self.kw_between(self.t_master, t1) if k["label"].startswith("Chapter ")), None)
+        u0 = ease_out((t - self.t_master) / 0.6)
+        c = (960, 540)
+        cs = pill_sprite([("RAMESH SINGH · 18th EDITION", "Inter-SemiBold", 20, DIM), ("Indian Economy", "InterDisplay-Black", 46, WHITE),
+                          ("22 Chapters · 22 Classes", "Inter-SemiBold", 22, GOLD)], ACC, pad=(34, 20), border=3)
+        f = F("InterDisplay-Bold", 25)
+        for k in ks:
+            n = int(k["label"].split(".")[0]); left = n <= 11; row = (n - 1) % 11
+            x = 300 if left else 1620; y = 95 + row * 89
+            a = ease_out((t - k["t"]) / 0.45)
+            if a <= 0: continue
+            ex = x + (270 if left else -270)
+            mid = ((ex + c[0]) / 2, (y + c[1]) / 2)
+            pts = [(c[0] + (ex - c[0]) * q, c[1] + (y - c[1]) * (q ** 1.6)) for q in [i / 20 for i in range(21)]]
+            n_on = max(2, int(len(pts) * a))
+            d.line(pts[:n_on], fill=ACC + (int(160 * a),), width=3)
+            is_today = today is not None and n == 1 and t >= today["t"]
+            glow = 0.5 + 0.5 * math.sin(t * 5) if is_today else 0
+            fill = (60, 45, 5) if is_today else (20, 29, 58)
+            edge = GOLD if is_today else ACC
+            d.rounded_rectangle((x - 270, y - 36, x + 270, y + 36), radius=36, fill=fill + (int(245 * a),),
+                                outline=edge + (int(255 * a),), width=4 if is_today else 2)
+            if is_today:
+                d.rounded_rectangle((x - 280 - 6 * glow, y - 46 - 6 * glow, x + 280 + 6 * glow, y + 46 + 6 * glow), radius=46,
+                                    outline=GOLD + (int(120 * glow),), width=3)
+            if k["emoji"]: put(im, k["emoji"], (x - 235, y), 38, a)
+            lab = k["label"]; ff = f
+            while ff.size > 17 and ff.getlength(lab) > 440: ff = F("InterDisplay-Bold", ff.size - 1)
+            txt(im, (x - 205, y), lab, ff, GOLD if is_today else WHITE, alpha=a, anchor="lm")
+        paste_center(im, cs, c, 0.6 + 0.4 * back((t - self.t_master) / 0.6), u0)
+        if today is not None and t >= today["t"]:
+            ut = ease_out((t - today["t"]) / 0.4)
+            sp = pill_sprite([("AAJ KI CLASS: CHAPTER 1", "InterDisplay-Black", 30, (25, 18, 0))], GOLD, fill=GOLD, pad=(26, 10), border=0)
+            paste_center(im, sp, (960, 660), back(ut), ut)
+        return im
+
     def frame(self, t):
+        if self.t_master is not None and self.t_master <= t < (self.t_today or 1e9):
+            u = ease((t - self.t_master) / 0.6); im = self.draw_master(t)
+            return Image.blend(self.draw_hook(t), im, u) if u < 1 else im
+        if self.t_today is not None and self.t_today <= t < self.t_today + 0.6:
+            return Image.blend(self.draw_master(t), self.draw_hook(t), ease((t - self.t_today) / 0.6))
         if self.t_end is not None and t >= self.t_end:
             u = ease((t - self.t_end) / 0.7); im = self.draw_end(t)
             return Image.blend(self.draw_outro(t), im, u) if u < 1 else im

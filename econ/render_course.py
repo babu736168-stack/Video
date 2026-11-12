@@ -277,8 +277,13 @@ class Course(Film):
         Each chapter appears when its name is spoken; today's chapter glows at the end."""
         im = E.BG.copy(); d = ImageDraw.Draw(im, "RGBA")
         t1 = self.t_today if self.t_today is not None else 1e9
-        ks = [k for k in self.kw_between(self.t_master, t1) if k["label"][:1].isdigit() and ". " in k["label"]]
-        today = next((k for k in self.kw_between(self.t_master, t1) if k["label"].startswith("Chapter ")), None)
+        C = self.S.CHAPTER; num = C.get("num", 1)
+        if C.get("master_all"):          # later chapters: the whole book appears at once (no list read aloud)
+            ks = [dict(label=f"{i + 1}. {name}", emoji="", t=self.t_master + 0.25 + 0.06 * i)
+                  for i, name in enumerate(C["book"])]
+        else:
+            ks = [k for k in self.kw_between(self.t_master, t1) if k["label"][:1].isdigit() and ". " in k["label"]]
+        today = next((k for k in self.kw_between(self.t_master, t1) if k["label"] == f"Chapter {num}"), None)
         u0 = ease_out((t - self.t_master) / 0.6)
         c = (960, 540)
         cs = pill_sprite([("RAMESH SINGH · 18th EDITION", "Inter-SemiBold", 20, DIM), ("Indian Economy", "InterDisplay-Black", 46, WHITE),
@@ -294,7 +299,8 @@ class Course(Film):
             pts = [(c[0] + (ex - c[0]) * q, c[1] + (y - c[1]) * (q ** 1.6)) for q in [i / 20 for i in range(21)]]
             n_on = max(2, int(len(pts) * a))
             d.line(pts[:n_on], fill=ACC + (int(160 * a),), width=3)
-            is_today = today is not None and n == 1 and t >= today["t"]
+            is_today = today is not None and n == num and t >= today["t"]
+            is_done = n < num
             glow = 0.5 + 0.5 * math.sin(t * 5) if is_today else 0
             fill = (60, 45, 5) if is_today else (20, 29, 58)
             edge = GOLD if is_today else ACC
@@ -304,13 +310,17 @@ class Course(Film):
                 d.rounded_rectangle((x - 280 - 6 * glow, y - 46 - 6 * glow, x + 280 + 6 * glow, y + 46 + 6 * glow), radius=46,
                                     outline=GOLD + (int(120 * glow),), width=3)
             if k["emoji"]: put(im, k["emoji"], (x - 235, y), 38, a)
+            if is_done:                                                   # finished chapters get a green tick
+                d.ellipse((x + 222, y - 18, x + 258, y + 18), fill=GREEN + (int(255 * a),))
+                d.line([(x + 231, y), (x + 238, y + 8), (x + 250, y - 8)], fill=(255, 255, 255, int(255 * a)), width=4)
             lab = k["label"]; ff = f
+            if not k["emoji"]: lab = lab
             while ff.size > 17 and ff.getlength(lab) > 440: ff = F("InterDisplay-Bold", ff.size - 1)
             txt(im, (x - 205, y), lab, ff, GOLD if is_today else WHITE, alpha=a, anchor="lm")
         paste_center(im, cs, c, 0.6 + 0.4 * back((t - self.t_master) / 0.6), u0)
         if today is not None and t >= today["t"]:
             ut = ease_out((t - today["t"]) / 0.4)
-            sp = pill_sprite([("AAJ KI CLASS: CHAPTER 1", "InterDisplay-Black", 30, (25, 18, 0))], GOLD, fill=GOLD, pad=(26, 10), border=0)
+            sp = pill_sprite([(f"AAJ KI CLASS: CHAPTER {num}", "InterDisplay-Black", 30, (25, 18, 0))], GOLD, fill=GOLD, pad=(26, 10), border=0)
             paste_center(im, sp, (960, 660), back(ut), ut)
         return im
 

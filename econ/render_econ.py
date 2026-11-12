@@ -341,7 +341,9 @@ class Film:
                                          ACC, pad=(40, 24), border=3)}
         for tp in self.S.TOPICS:
             for hl in (False, True):
-                sp = pill_sprite([("", "Inter-Medium", 50, WHITE), (tp["name"], "InterDisplay-Bold", 32, WHITE)], ACC,
+                nfs = 32
+                while nfs > 20 and F("InterDisplay-Bold", nfs).getlength(tp["name"]) > 300: nfs -= 1   # long names fit
+                sp = pill_sprite([("", "Inter-Medium", 50, WHITE), (tp["name"], "InterDisplay-Bold", nfs, WHITE)], ACC,
                                  w=330, pad=(20, 14), border=3, glow=hl)
                 put(sp, tp["icon"], (sp.width / 2, sp.height / 2 - 26), 54)
                 self.sp[tp["id"] + ("_hl" if hl else "")] = sp

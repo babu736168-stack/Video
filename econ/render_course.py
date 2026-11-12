@@ -104,6 +104,9 @@ class Course(Film):
                 f = F("InterDisplay-Bold", fs)
                 ew = E.emo(k["emoji"], 40).width + 12 if k["emoji"] else 0
                 w = f.getlength(k["label"]) + 44 + ew
+                if w > X1 - X0:                               # very long label: smaller font so it fits
+                    f = F("InterDisplay-Bold", max(22, int(fs * (X1 - X0 - 44 - ew) / f.getlength(k["label"]))))
+                    w = f.getlength(k["label"]) + 44 + ew
                 if x + w > X1 and x > X0: x = X0; y += 76
                 items.append(dict(kind=kind, text=k["label"], emoji=k["emoji"], ew=ew, x=x, y=y, w=w, t=k["t"], f=f))
                 x += w + 16
@@ -193,7 +196,23 @@ class Course(Film):
         for w_, al in ((26, 0.18), (14, 0.35), (6, 1.0)):                          # soft glowing gold ring
             d.ellipse((960 - r, 420 - r, 960 + r, 420 + r), outline=GOLD + (int(255 * al * a * (0.7 + 0.3 * pul)),), width=w_)
         paste_center(im, self._logo, (960, 420), 0.85 + 0.15 * back((t - self.t_end) / 0.7), a)
-        ks = [k for k in self.kws if k["t"] >= self.t_end and k["label"] and k["label"] != C.get("channel")]
+        allk = [k for k in self.kws if k["t"] >= self.t_end and k["label"] and k["label"] != C.get("channel")]
+        acts = [k for k in allk if not k["label"].endswith(".")]          # Like, Share, Comment, Subscribe
+        ks = [k for k in allk if k["label"].endswith(".")]                # See it. Understand it. Remember it.
+        if acts:
+            fb = F("InterDisplay-Bold", 40); bw = [fb.getlength(k["label"]) + 120 for k in acts]
+            bx = 960 - (sum(bw) + 24 * (len(acts) - 1)) / 2
+            for j, k in enumerate(acts):
+                u = ease_out((t - k["t"]) / 0.3); x0b = bx; bx += bw[j] + 24
+                if u <= 0: continue
+                sub = "ubscribe" in k["label"]
+                col = (230, 40, 40) if sub else (30, 44, 84)
+                sc = 1 + 0.15 * max(0, 1 - (t - k["t"]) / 0.3)
+                h2 = 36 * sc
+                d.rounded_rectangle((x0b, 765 - h2, x0b + bw[j], 765 + h2), radius=int(h2), fill=col + (int(245 * u),),
+                                    outline=(WHITE if sub else ACC) + (int(255 * u),), width=3)
+                if k["emoji"]: put(im, k["emoji"], (x0b + 40, 765), int(40 * sc), u)
+                txt(im, (x0b + 72, 765), k["label"], fb, WHITE, alpha=u, anchor="lm")
         ft = F("InterDisplay-Black", 58); gap = 60
         widths = [ft.getlength(k["label"]) for k in ks]
         x = 960 - (sum(widths) + gap * (len(ks) - 1)) / 2
@@ -201,7 +220,7 @@ class Course(Film):
             u = ease_out((t - k["t"]) / 0.35)
             cx = x + widths[j] / 2; x += widths[j] + gap
             if u <= 0: continue
-            glow_text(im, (cx, 790 + 20 * (1 - u)), k["label"], ft, (GOLD, WHITE, (70, 210, 140))[j % 3],
+            glow_text(im, (cx, (855 if acts else 790) + 20 * (1 - u)), k["label"], ft, (GOLD, WHITE, (70, 210, 140))[j % 3],
                       glow=GOLD if j == 0 else None, anchor="mm", alpha=u, radius=10)
         nt = C.get("next_title")
         if nt:
@@ -225,7 +244,9 @@ class Course(Film):
             put(im, k["emoji"], (cx, cy), 90, 0.85)
         u = pop(t, newest["t"], 0.45)
         put(im, newest["emoji"], ((x0 + x1) / 2, y0 + 330 + 8 * math.sin(t * 3)), int(300 * max(0.05, u)), min(1, u * 2))
-        glow_text(im, ((x0 + x1) / 2, y0 + 580), newest["label"], F("InterDisplay-Black", 64), GOLD, glow=GOLD,
+        fsz = 64
+        while fsz > 30 and F("InterDisplay-Black", fsz).getlength(newest["label"]) > (x1 - x0) - 80: fsz -= 2
+        glow_text(im, ((x0 + x1) / 2, y0 + 580), newest["label"], F("InterDisplay-Black", fsz), GOLD, glow=GOLD,
                   anchor="mm", alpha=min(1, u * 2), radius=12)
 
     # ---- recap: the same items, ticked as they are spoken

@@ -18,7 +18,7 @@ Course facts: Ramesh Singh 18e has 22 chapters (list in COURSE_PLAN.md), grouped
 The class follows one connected story: Riya, a college student, and her ₹100 (fictional illustration),
 with a bridge line at the end of every topic into the next.
 """
-CHAPTER = dict(num=1, title="Introduction to Economics", kicker="RAMESH SINGH · CHAPTER 1", rain="📘",
+CHAPTER = dict(num=1, title="Introduction to Economics", kicker="RAMESH SINGH · CHAPTER 1", rain="💡",
                video="Ch01 – Introduction to Economics",
                outro_icons=("💹", "🧮"), logo="assets/visualmind_logo.png", channel="The VisualMind",
                next_title="Next: Chapter 2 — National Income")

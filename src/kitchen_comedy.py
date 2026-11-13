@@ -566,9 +566,26 @@ def animate(name, t, f):
     return S
 
 
-def paste(img, spr, x, y, ax, ay, facing):
-    axx = ax if facing > 0 else spr.width - ax
-    img.paste(spr, (int(x - axx), int(y - ay)), spr)
+def paste(img, spr, x, y, ax, ay, facing, ss=1):
+    """Paste a sprite drawn at ss x scale so its ground anchor lands on world point (x, y)."""
+    axx = ax * ss if facing > 0 else spr.width - ax * ss
+    img.paste(spr, (int(x * ss - axx), int(y * ss - ay * ss)), spr)
+
+
+_SHADOWS = {}
+
+
+def floor_shadow(img, x, y, w, ss, strength=1.0):
+    """Soft contact shadow on the floor under a character."""
+    key = (int(w), round(strength, 1))
+    if key not in _SHADOWS:
+        sw, sh = int(w * ss * 1.4), int(w * ss * 0.45)
+        im = Image.new("L", (sw, sh), 0)
+        ImageDraw.Draw(im).ellipse((sw * 0.15, sh * 0.25, sw * 0.85, sh * 0.75), fill=int(110 * strength))
+        im = im.filter(ImageFilter.GaussianBlur(6 * ss))
+        _SHADOWS[key] = (Image.new("RGB", (sw, sh), (60, 25, 15)), im)
+    col, mask = _SHADOWS[key]
+    img.paste(col, (int(x * ss - col.width / 2), int(y * ss - col.height / 2)), mask)
 
 
 # ---------------------------------------------------------------- props
@@ -643,9 +660,10 @@ def hearts(sd, x, y, t):
 
 # ---------------------------------------------------------------- frame
 def render_world(t, f):
+    X = K.SS
     img = K.kitchen().copy()
     d = ImageDraw.Draw(img)
-    sd = SD(d)
+    sd = SD(d, X)
     K.fan(sd, t, 8)
     K.rug(sd, 400, GROUND)
     C, Mo, D, G = animate("cat", t, f), animate("mouse", t, f), animate("dog", t, f), animate("dadi", t, f)
@@ -653,39 +671,54 @@ def render_world(t, f):
     if not sack_front:
         K.flour_sack(sd, t >= 25.2)
     draw_props(sd, t)
+    # soft floor shadows (smaller and lighter when a character is in the air)
+    def shade_under(S, x, w, ground=GROUND):
+        if S["mode"] == "stand":
+            air = clamp(-S.get("yoff", 0) / 300)
+            floor_shadow(img, x, ground + 2, w * (1 - 0.5 * air), X, round(1 - 0.7 * air, 1))
+    if Mo["mode"] != "hidden" and Mo["y"] in (GROUND, TABLE_TOP):
+        shade_under(Mo, Mo["x"], 60, Mo["y"])
+    if D["mode"] != "hidden" and D["st"]["pose"] != "sleep":
+        shade_under(D, D["x"], 220)
+    if C["mode"] == "stand":
+        shade_under(C, C["x"], 150)
+    elif C["mode"] == "rot":
+        floor_shadow(img, C["center"][0], GROUND + 2, 120, X, 0.5)
+    if G["mode"] != "hidden":
+        shade_under(G, G["x"], 140)
     # mouse hiding behind the dog is drawn before the dog
     def draw_mouse():
         if Mo["mode"] == "hidden":
             return
-        spr = K.mouse_sprite(t, Mo["st"], Mo["facing"])
-        paste(img, spr, Mo["x"], Mo["y"] + Mo["yoff"], K.MAX, K.MAY, Mo["facing"])
+        spr = K.mouse_sprite(t, Mo["st"], Mo["facing"], ss=X)
+        paste(img, spr, Mo["x"], Mo["y"] + Mo["yoff"], K.MAX, K.MAY, Mo["facing"], X)
     if Mo["st"].get("behind"):
         draw_mouse()
     if D["mode"] != "hidden":
-        spr = K.dog_sprite(t, D["st"], D["facing"])
-        paste(img, spr, D["x"], GROUND, K.DAX, K.DAY, D["facing"])
+        spr = K.dog_sprite(t, D["st"], D["facing"], ss=X)
+        paste(img, spr, D["x"], GROUND, K.DAX, K.DAY, D["facing"], X)
         if D["st"]["pose"] == "sleep":
             zzz(sd, D["x"] - 70, GROUND - 140, t)
     if C["mode"] == "sleep":
         K.draw_cat_sleeping(sd, 400, GROUND, t)
         zzz(sd, 480, 570, t)
     elif C["mode"] == "stand":
-        spr = K.cat_sprite(t, C["st"], C["facing"])
-        paste(img, spr, C["x"], GROUND + C["yoff"], K.CAX, K.CAY, C["facing"])
+        spr = K.cat_sprite(t, C["st"], C["facing"], ss=X)
+        paste(img, spr, C["x"], GROUND + C["yoff"], K.CAX, K.CAY, C["facing"], X)
         if C["st"].get("stars"):
             hx, hy = cat_head(C)
             K.stars(sd, hx, hy - 10, t)
     elif C["mode"] == "rot":
-        spr = K.cat_sprite(t, C["st"], 1).rotate(C["angle"], resample=Image.BICUBIC, expand=True)
+        spr = K.cat_sprite(t, C["st"], 1, ss=X).rotate(C["angle"], resample=Image.BICUBIC, expand=True)
         cx, cy = C["center"]
-        img.paste(spr, (int(cx - spr.width / 2), int(cy - spr.height / 2)), spr)
+        img.paste(spr, (int(cx * X - spr.width / 2), int(cy * X - spr.height / 2)), spr)
     if sack_front:
         K.flour_sack(sd, t >= 25.2)
     if not Mo["st"].get("behind"):
         draw_mouse()
     if G["mode"] != "hidden":
-        spr = K.dadi_sprite(t, G["st"], G["facing"])
-        paste(img, spr, G["x"], GROUND, K.GAX, K.GAY, G["facing"])
+        spr = K.dadi_sprite(t, G["st"], G["facing"], ss=X)
+        paste(img, spr, G["x"], GROUND, K.GAX, K.GAY, G["facing"], X)
     flour_puffs(sd, t)
     if 69.5 <= t < 72.0:
         K.fight_cloud(sd, 680 + 20 * math.sin(t * 7), 540, t)
@@ -714,7 +747,8 @@ def render_story(t, f):
     cx, cy, z = camera(t)
     vw, vh = W / z, H / z
     x0, y0 = clamp(cx - vw / 2, 0, W - vw), clamp(cy - vh / 2, 0, H - vh)
-    img = world.resize((W, H), Image.BILINEAR, box=(x0, y0, x0 + vw, y0 + vh)) if z > 1.001 else world
+    X = K.SS
+    img = world.resize((W, H), Image.LANCZOS, box=(x0 * X, y0 * X, (x0 + vw) * X, (y0 + vh) * X))
     to_screen = lambda p: ((p[0] - x0) * z, (p[1] - y0) * z)
     d = ImageDraw.Draw(img)
     for t0, word, p, color, *rest in WORDS:
@@ -762,24 +796,36 @@ CAST = [
 ]
 
 
-def draw_cast(d, who, t, f):
+def half(spr):
+    return spr.resize((spr.width // 2, spr.height // 2), Image.LANCZOS)
+
+
+def ss_layer(img, fn):
+    """Run fn(draw, ss) on a 2x transparent layer and composite it down smoothly."""
+    layer = Image.new("RGBA", (W * 2, H * 2), (0, 0, 0, 0))
+    fn(ImageDraw.Draw(layer), 2)
+    layer = layer.resize((W, H), Image.LANCZOS)
+    img.paste(layer, (0, 0), layer)
+
+
+def draw_cast(d, who, t, f, ss=1):
     bob = math.sin(t * 3) * 4
     talk = (f // 3) % 2 == 0 and 0.6 < t < 2.4
     if who == "cat":
         k = 1.55
-        K.draw_cat(SD(d, k, 330 - K.CAX * k, 700 - K.CAY * k + bob), t,
+        K.draw_cat(SD(d, (k) * ss, (330 - K.CAX * k) * ss, (700 - K.CAY * k + bob) * ss), t,
                    dict(pose="rub" if t < 2 else "pan_up", face="grin", talk=talk))
     elif who == "mouse":
         k = 3.4
-        K.draw_mouse(SD(d, k, 320 - K.MAX * k, 690 - K.MAY * k + bob), t,
+        K.draw_mouse(SD(d, (k) * ss, (320 - K.MAX * k) * ss, (690 - K.MAY * k + bob) * ss), t,
                      dict(pose="carry" if t < 2 else "wave", face="smile", talk=talk))
     elif who == "dog":
         k = 1.6
-        K.draw_dog(SD(d, k, 330 - K.DAX * k, 700 - K.DAY * k), t,
+        K.draw_dog(SD(d, (k) * ss, (330 - K.DAX * k) * ss, (700 - K.DAY * k) * ss), t,
                    dict(pose="sleep" if t < 1.8 else "sit", face="sleep" if t < 1.8 else "angry"))
     else:
         k = 1.4
-        K.draw_dadi(SD(d, k, 300 - K.GAX * k, 705 - K.GAY * k), t,
+        K.draw_dadi(SD(d, (k) * ss, (300 - K.GAX * k) * ss, (705 - K.GAY * k) * ss), t,
                     dict(pose="carry" if t < 1.8 else "broom_up", face="smile" if t < 1.8 else "angry", talk=talk))
 
 
@@ -793,7 +839,7 @@ def make_card(i):
         d = ImageDraw.Draw(img)
         d.text((W / 2, 40), f"MEET THE CAST   {i + 1} / 4", font=font("Inter-Black.otf", 26),
                fill=(230, 230, 230), anchor="mm")
-        draw_cast(d, who, t, f)
+        ss_layer(img, lambda dd, ss: draw_cast(dd, who, t, f, ss))
         tx = lin(W + 60, 620, ease((t - 0.1) / 0.5))
         d.text((tx, 200), name, font=font("Inter-Black.otf", 56), fill=(255, 255, 255), stroke_width=3, stroke_fill=OL)
         d.text((tx, 278), role, font=font("Inter-Bold.otf", 34), fill=tuple(min(255, c + 80) for c in color))
@@ -813,7 +859,7 @@ _tbg = None
 def render_title(t, f):
     global _tbg
     if _tbg is None:
-        _tbg = Image.blend(K.kitchen().filter(ImageFilter.GaussianBlur(6)), Image.new("RGB", (W, H), (30, 10, 0)), 0.5)
+        _tbg = Image.blend(K.kitchen(1).filter(ImageFilter.GaussianBlur(6)), Image.new("RGB", (W, H), (30, 10, 0)), 0.5)
     img = _tbg.copy()
     d = ImageDraw.Draw(img)
     z = 0.6 + 0.4 * ease(t / 0.8)
@@ -829,9 +875,9 @@ def render_title(t, f):
     mx = lin(-100, 1400, u * 1.2)
     k = 1.0
     v = 1500 * 1.2 / TITLE
-    m = K.mouse_sprite(t, gait_pose("mouse", mx, v, dict(pose="carry_run", face="smile")), 1, 1.3)
+    m = half(K.mouse_sprite(t, gait_pose("mouse", mx, v, dict(pose="carry_run", face="smile")), 1, 1.3, ss=2))
     img.paste(m, (int(mx), 520), m)
-    c = K.cat_sprite(t, gait_pose("cat", mx, v, dict(pose="run", face="grin")), 1)
+    c = half(K.cat_sprite(t, gait_pose("cat", mx, v, dict(pose="run", face="grin")), 1, ss=2))
     img.paste(c, (int(mx - 360), 350), c)
     return img
 
@@ -848,11 +894,15 @@ def render_end(t, f):
            font=font("Inter-SemiBold.otf", 22), fill=(220, 210, 200), anchor="mm")
     d.text((W / 2, 432), "All characters are original.", font=font("Inter-Regular.otf", 18),
            fill=(170, 160, 150), anchor="mm")
-    K.draw_dog(SD(d, 0.9, 470 - K.DAX * 0.9, 700 - K.DAY * 0.9), t, dict(pose="sit", face="happy", laddoo=True))
-    K.draw_mouse(SD(d, 1.6, 620 - K.MAX * 1.6, 700 - K.MAY * 1.6), t, dict(pose="eat"))
-    K.draw_cat(SD(d, 0.75, 860 - K.CAX * 0.75, 700 - K.CAY * 0.75), t,
-               dict(pose="idle", face="dizzy", lump=True))
+    ss_layer(img, lambda dd, ss: end_cast(dd, ss, t))
     return img
+
+
+def end_cast(d, ss, t):
+    K.draw_dog(SD(d, 0.9 * ss, (470 - K.DAX * 0.9) * ss, (700 - K.DAY * 0.9) * ss), t, dict(pose="sit", face="happy", laddoo=True))
+    K.draw_mouse(SD(d, 1.6 * ss, (620 - K.MAX * 1.6) * ss, (700 - K.MAY * 1.6) * ss), t, dict(pose="eat"))
+    K.draw_cat(SD(d, 0.75 * ss, (860 - K.CAX * 0.75) * ss, (700 - K.CAY * 0.75) * ss), t,
+               dict(pose="idle", face="dizzy", lump=True))
 
 
 # ---------------------------------------------------------------- audio

@@ -61,6 +61,40 @@ def upper(sd, st):
     return SD(sd.d, sd.k, sd.ox + st.get("lean", 0) * sd.k, sd.oy + st.get("bob_y", 0) * sd.k)
 
 
+SS = 2   # supersampling factor: everything is drawn at 2x and scaled down for smooth edges
+
+
+def tone(color, f):
+    return tuple(max(0, min(255, int(v * f))) for v in color[:3])
+
+
+def cel(sd, box, color, inset=4, light=True, a0=70, a1=250):
+    """Cel shading: a darker crescent hugging the lower-left edge, tapering to points,
+    plus a soft highlight arc on the upper-right (light comes from the top right)."""
+    x0, y0, x1, y1 = box
+    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+    rx, ry = (x1 - x0) / 2 - inset, (y1 - y0) / 2 - inset
+    n = 28
+    outer = []
+    for i in range(n + 1):
+        a = math.radians(a0 + (a1 - a0) * i / n)
+        outer.append((cx + rx * math.cos(a), cy + ry * math.sin(a)))
+    tx, ty = cx + rx * 0.5, cy - ry * 0.45          # point the crescent bulges away from
+    inner = []
+    for i, (px, py) in enumerate(outer):
+        k = 0.32 * math.sin(math.pi * i / n)
+        inner.append((px + (tx - px) * k, py + (ty - py) * k))
+    sd.poly(outer + inner[::-1], fill=tone(color, 0.84))
+    if light:
+        w = max(3, (x1 - x0) * 0.06)
+        sd.arc((x0 + inset * 3, y0 + inset * 3, x1 - inset * 3, y1 - inset * 3), 285, 335, tone(color, 1.22), w)
+
+
+def eye_shine(sd, x, y, r=3.2):
+    sd.circle(x, y, r, fill=(255, 255, 255))
+    sd.circle(x + r * 1.6, y + r * 1.5, r * 0.45, fill=(255, 255, 255))
+
+
 def laddoo(sd, x, y, r=13):
     sd.circle(x, y, r, fill=(250, 165, 30), outline=(170, 90, 10), width=2)
     rng = random.Random(int(x * 7 + y))
@@ -169,7 +203,12 @@ def draw_cat(sd, t, st):
     _, L = rlimb(sd, (160, 215 + c), L, 42, 40, -1, tuple(int(v * 0.88) for v in body), 18, 14)
     # body
     sd.ellipse((128, 185 + c, 238, 312 + c), fill=body, outline=OL, width=4)
-    sd.ellipse((158, 205 + c, 222, 306 + c), fill=CREAM if not flour else (250, 250, 250))
+    cel(sd, (128, 185 + c, 238, 312 + c), body)
+    belly = CREAM if not flour else (250, 250, 250)
+    sd.ellipse((158, 205 + c, 222, 306 + c), fill=belly)
+    sd.chord((160, 230 + c, 220, 304 + c), 100, 200, fill=tone(belly, 0.92))
+    sd.poly([(162, 210 + c), (172, 226 + c), (180, 212 + c), (190, 230 + c), (200, 212 + c), (208, 226 + c), (218, 210 + c),
+             (210, 200 + c), (170, 200 + c)], fill=belly)                                     # chest fluff
     for k in range(3):
         y = 215 + c + k * 26
         sd.arc((122, y, 168, y + 30), 300, 60, dark, 6)
@@ -180,12 +219,22 @@ def draw_cat(sd, t, st):
     for ex, tip in ((-34, -60), (30, -62)):
         sd.poly([(hx + ex - 22, hy - 30), (hx + ex + tip * 0.1, hy + tip - 18), (hx + ex + 22, hy - 34)], fill=body, outline=OL, width=3)
         sd.poly([(hx + ex - 11, hy - 34), (hx + ex + tip * 0.08, hy + tip - 4), (hx + ex + 11, hy - 36)], fill=(255, 160, 180))
+    for s_ in (-1, 1):                                                                       # cheek fluff
+        sd.poly([(hx + s_ * 46, hy - 4), (hx + s_ * 70, hy + 2), (hx + s_ * 54, hy + 12), (hx + s_ * 68, hy + 24),
+                 (hx + s_ * 48, hy + 26), (hx + s_ * 56, hy + 38), (hx + s_ * 30, hy + 34)], fill=body, outline=OL, width=3)
     sd.circle(hx, hy, 56, fill=body, outline=OL, width=4)
+    cel(sd, (hx - 56, hy - 56, hx + 56, hy + 56), body)
     for k in (-14, 0, 14):
         sd.line([(hx + k, hy - 54), (hx + k * 0.6, hy - 34)], dark, 5)
     if st.get("lump"):
         sd.ellipse((hx - 22, hy - 86, hx + 14, hy - 48), fill=(255, 140, 120), outline=OL, width=3)
-    sd.ellipse((hx - 6, hy + 4, hx + 58, hy + 48), fill=CREAM if not flour else (250, 250, 250))
+    mz = CREAM if not flour else (250, 250, 250)
+    sd.ellipse((hx + 6, hy + 8, hx + 40, hy + 42), fill=mz)                                  # two-lobe muzzle
+    sd.ellipse((hx + 30, hy + 8, hx + 64, hy + 42), fill=mz)
+    sd.ellipse((hx + 22, hy + 30, hx + 48, hy + 50), fill=mz)
+    for k in range(3):
+        sd.circle(hx + 24 + k * 5, hy + 26 + (k % 2) * 4, 1.6, fill=tone(body, 0.7))
+        sd.circle(hx + 48 + k * 5, hy + 26 + (k % 2) * 4, 1.6, fill=tone(body, 0.7))
     # eyes
     lx = st.get("look", 0)
     if face == "sleep":
@@ -203,7 +252,10 @@ def draw_cat(sd, t, st):
                 sd.line([(hx + ex - 14, hy - 10), (hx + ex + 14, hy - 10)], OL, 4)
                 continue
             sd.ellipse((hx + ex - 8 + lx, hy - 20, hx + ex + 8 + lx, hy + 2), fill=(90, 190, 70))
+            sd.chord((hx + ex - 8 + lx, hy - 20, hx + ex + 8 + lx, hy + 2), 180, 360, fill=(60, 150, 50))
             sd.ellipse((hx + ex - 3 + lx, hy - 15, hx + ex + 4 + lx, hy - 1), fill=OL)
+            eye_shine(sd, hx + ex - 2 + lx, hy - 13, 2.6)
+            sd.arc((hx + ex - 15 * big, hy - 30 * big, hx + ex + 15 * big, hy + 8), 200, 340, OL, 5)   # upper lid
         if face in ("grin", "angry", "smirk"):
             sd.line([(hx - 34, hy - 36), (hx - 4, hy - 26)], OL, 5)
             sd.line([(hx + 40, hy - 36), (hx + 8, hy - 26)], OL, 5)
@@ -212,7 +264,9 @@ def draw_cat(sd, t, st):
             sd.line([(hx + 40, hy - 30), (hx + 8, hy - 38)], OL, 4)
             sd.ellipse((hx + 50, hy - 46, hx + 62, hy - 26), fill=(140, 200, 255), outline=OL, width=2)
     # nose, whiskers, mouth
-    sd.poly([(hx + 30, hy + 8), (hx + 46, hy + 8), (hx + 38, hy + 18)], fill=(255, 110, 140), outline=OL, width=2)
+    sd.poly([(hx + 28, hy + 10), (hx + 48, hy + 10), (hx + 38, hy + 22)], fill=(255, 110, 140), outline=OL, width=2)
+    sd.circle(hx + 34, hy + 13, 2, fill=(255, 200, 215))
+    sd.line([(hx + 38, hy + 22), (hx + 38, hy + 30)], OL, 2)
     for k in (-1, 0, 1):
         sd.line([(hx + 52, hy + 22 + k * 6), (hx + 84, hy + 16 + k * 12)], OL, 2)
         sd.line([(hx + 18, hy + 22 + k * 6), (hx - 14, hy + 16 + k * 12)], OL, 2)
@@ -228,7 +282,8 @@ def draw_cat(sd, t, st):
     elif face in ("sleep", "dizzy"):
         sd.arc((mx - 10, my - 4, mx + 10, my + 8), 20, 160, OL, 3)
     else:
-        sd.arc((mx - 16, my - 10, mx + 10, my + 8), 20, 140, OL, 4)
+        sd.arc((mx - 16, my - 6, mx + 2, my + 8), 10, 170, OL, 3)                            # "w" cat mouth
+        sd.arc((mx - 2, my - 6, mx + 16, my + 8), 10, 170, OL, 3)
     if st.get("pot"):
         sd.rrect((hx - 66, hy - 70, hx + 66, hy + 10), 12, fill=(185, 190, 200), outline=OL, width=4)
         sd.rect((hx - 74, hy + 2, hx + 74, hy + 16), fill=(160, 165, 175), outline=OL, width=3)
@@ -270,9 +325,9 @@ def draw_cat_sleeping(sd, x, y, t):
     sd.arc((hx + 20, hy + 14, hx + 40, hy + 26), 20, 160, OL, 3)
 
 
-def cat_sprite(t, st, facing=1):
-    im = Image.new("RGBA", (CW, CH), (0, 0, 0, 0))
-    draw_cat(SD(ImageDraw.Draw(im)), t, st)
+def cat_sprite(t, st, facing=1, ss=1):
+    im = Image.new("RGBA", (CW * ss, CH * ss), (0, 0, 0, 0))
+    draw_cat(SD(ImageDraw.Draw(im), ss), t, st)
     return im if facing > 0 else ImageOps.mirror(im)
 
 
@@ -289,7 +344,7 @@ def mouse_hands(st, t):
     return {
         "idle": ((70 - sw[1] * 0.8, 126 + by), (108 - sw[0] * 0.8, 126 + by)),
         "run": ((84 - sw[1] * 1.1, 116 + by), (102 - sw[0] * 1.1, 114 + by)),
-        "carry": ((70, 52), (100, 52)), "carry_run": ((70, 52), (100, 52)),
+        "carry": ((66, 52), (104, 50)), "carry_run": ((66, 52), (104, 50)),
         "climb": ((78, 52), (106, 48)), "laugh": ((76, 122), (104, 122)),
         "wave": ((66, 128), (126, 64 + 8 * math.sin(t * 14))), "push": ((122, 110), (130, 104)),
         "fork": ((110, 110), (122, 106)), "cheese": ((110, 104), (122, 104)),
@@ -311,6 +366,7 @@ def draw_mouse(sd, t, st):
         fx, fy = feet[i]
         base_sd.ellipse((fx - 6, fy - 6, fx + 16, fy + 6), fill=(245, 170, 180), outline=OL, width=2)
     sd.ellipse((58, 92, 122, 146), fill=MOUSE_C, outline=OL, width=3)
+    cel(sd, (58, 92, 122, 146), MOUSE_C, 3)
     sd.ellipse((76, 104, 116, 144), fill=MOUSE_L)
     hx, hy = 96, 74
     if pose == "sniff":
@@ -319,7 +375,9 @@ def draw_mouse(sd, t, st):
         sd.circle(hx + ex, hy + ey, 17, fill=MOUSE_C, outline=OL, width=3)
         sd.circle(hx + ex, hy + ey, 10, fill=(245, 170, 180))
     sd.circle(hx, hy, 26, fill=MOUSE_C, outline=OL, width=3)
+    cel(sd, (hx - 26, hy - 26, hx + 26, hy + 26), MOUSE_C, 3)
     sd.ellipse((hx + 4, hy - 2, hx + 36, hy + 22), fill=MOUSE_L)
+    sd.circle(hx + 16, hy + 10, 5, fill=(250, 160, 175))
     sd.chord((hx - 24, hy - 40, hx + 18, hy - 6), 180, 360, fill=(220, 30, 40), outline=OL, width=2)   # red cap
     sd.poly([(hx + 10, hy - 18), (hx + 34, hy - 14), (hx + 12, hy - 8)], fill=(200, 20, 30), outline=OL, width=2)
     for ex in (-2, 16):
@@ -329,7 +387,9 @@ def draw_mouse(sd, t, st):
             big = 1.35 if face == "shock" else 1.0
             sd.ellipse((hx + ex - 7 * big, hy - 12 * big, hx + ex + 7 * big, hy + 4), fill=(255, 255, 255), outline=OL, width=2)
             sd.circle(hx + ex + 2, hy - 3, 3.5, fill=OL)
+            eye_shine(sd, hx + ex + 1, hy - 5, 1.4)
     sd.circle(hx + 36, hy + 6, 5, fill=OL)
+    sd.circle(hx + 35, hy + 4, 1.5, fill=(200, 200, 210))
     for k in (-1, 1):
         sd.line([(hx + 34, hy + 10), (hx + 52, hy + 8 + k * 7)], OL, 1)
     mx, my = hx + 22, hy + 16
@@ -340,7 +400,9 @@ def draw_mouse(sd, t, st):
         sd.ellipse((mx - 3, my + 2, mx + 7, my + 14), fill=(255, 110, 140), outline=OL, width=1)
     else:
         sd.arc((mx - 8, my - 6, mx + 8, my + 6), 20, 160, OL, 2)
-    for sh, hand in zip(((82, 106), (98, 106)), hands):
+        sd.rect((mx - 3, my + 4, mx + 3, my + 10), fill=(255, 255, 255), outline=OL, width=1)   # buck teeth
+        sd.line([(mx, my + 4), (mx, my + 10)], OL, 1)
+    for sh, hand in zip(((68, 110), (110, 106)), hands):
         rlimb(sd, sh, hand, 12, 12, -1, MOUSE_C, 6, 5)
         sd.circle(hand[0], hand[1], 5, fill=(245, 170, 180), outline=OL, width=1)
     if pose in ("carry", "carry_run"):
@@ -357,9 +419,9 @@ def draw_mouse(sd, t, st):
         laddoo(sd, 112, 86, 11)
 
 
-def mouse_sprite(t, st, facing=1, k=1.0):
-    im = Image.new("RGBA", (int(MW * k), int(MH * k)), (0, 0, 0, 0))
-    draw_mouse(SD(ImageDraw.Draw(im), k), t, st)
+def mouse_sprite(t, st, facing=1, k=1.0, ss=1):
+    im = Image.new("RGBA", (int(MW * k * ss), int(MH * k * ss)), (0, 0, 0, 0))
+    draw_mouse(SD(ImageDraw.Draw(im), k * ss), t, st)
     return im if facing > 0 else ImageOps.mirror(im)
 
 
@@ -374,6 +436,7 @@ def draw_dog(sd, t, st):
         breath = 4 * math.sin(t * 1.6)
         sd.ellipse((40, 300, 330, 318), fill=(90, 130, 200), outline=OL, width=3)   # mat
         sd.ellipse((60, 205 - breath, 300, 308), fill=DOG_C, outline=OL, width=4)
+        cel(sd, (60, 205 - breath, 300, 308), DOG_C)
         sd.ellipse((140, 230 - breath, 220, 290), fill=DOG_L)
         hx, hy = 290, 262
         sd.ellipse((240, 286, 300, 310), fill=DOG_L, outline=OL, width=3)
@@ -385,11 +448,13 @@ def draw_dog(sd, t, st):
             rlimb(sd, hips[i], feet[i], 36, 36, 1 if i < 2 else -1, col, 20, 15)
             sd.ellipse((feet[i][0] - 14, feet[i][1] - 8, feet[i][0] + 16, feet[i][1] + 8), fill=DOG_L, outline=OL, width=2)
         sd.ellipse((60, 170, 290, 260), fill=DOG_C, outline=OL, width=4)
+        cel(sd, (60, 170, 290, 260), DOG_C)
         sd.ellipse((140, 200, 240, 256), fill=DOG_L)
         hx, hy = 300, 168
     else:   # sitting
         sd.ellipse((96, 250, 166, 312), fill=DOG_C, outline=OL, width=3)
         sd.ellipse((110, 140, 270, 300), fill=DOG_C, outline=OL, width=4)
+        cel(sd, (110, 140, 270, 300), DOG_C)
         sd.ellipse((150, 170, 240, 296), fill=DOG_L)
         for x in (160, 222):
             sd.ellipse((x - 26, 284, x + 26, 314), fill=DOG_L, outline=OL, width=3)
@@ -404,8 +469,12 @@ def draw_dog(sd, t, st):
     # head
     sd.ellipse((hx - 66, hy - 30, hx - 30, hy + 40), fill=(110, 65, 35), outline=OL, width=3)     # ear
     sd.circle(hx, hy, 52, fill=DOG_C, outline=OL, width=4)
+    cel(sd, (hx - 52, hy - 52, hx + 52, hy + 52), DOG_C)
+    sd.ellipse((hx + 4, hy - 36, hx + 44, hy + 2), fill=(110, 65, 35))                          # eye patch
     sd.ellipse((hx - 2, hy - 4, hx + 70, hy + 46), fill=DOG_L, outline=OL, width=3)              # snout
+    sd.chord((hx - 2, hy - 4, hx + 70, hy + 46), 60, 160, fill=tone(DOG_L, 0.9))
     sd.ellipse((hx + 52, hy - 2, hx + 74, hy + 16), fill=OL)
+    sd.ellipse((hx + 56, hy + 1, hx + 64, hy + 6), fill=(150, 150, 160))
     sd.ellipse((hx + 22, hy - 60, hx + 54, hy - 4), fill=(110, 65, 35), outline=OL, width=3)     # ear 2
     if st.get("lump"):
         sd.ellipse((hx - 20, hy - 84, hx + 18, hy - 44), fill=(255, 140, 120), outline=OL, width=3)
@@ -417,6 +486,7 @@ def draw_dog(sd, t, st):
         for ex in (-12, 22):
             sd.ellipse((hx + ex - 10, hy - 28, hx + ex + 10, hy - 4), fill=(255, 255, 255), outline=OL, width=2)
             sd.circle(hx + ex + 3, hy - 14, 4, fill=OL)
+            eye_shine(sd, hx + ex + 2, hy - 16, 1.5)
         if face == "angry":
             sd.line([(hx - 26, hy - 40), (hx + 4, hy - 26)], OL, 6)
             sd.line([(hx + 40, hy - 40), (hx + 14, hy - 26)], OL, 6)
@@ -435,9 +505,9 @@ def draw_dog(sd, t, st):
         laddoo(sd, hx + 60, hy + 70, 14)
 
 
-def dog_sprite(t, st, facing=1):
-    im = Image.new("RGBA", (DW, DH), (0, 0, 0, 0))
-    draw_dog(SD(ImageDraw.Draw(im)), t, st)
+def dog_sprite(t, st, facing=1, ss=1):
+    im = Image.new("RGBA", (DW * ss, DH * ss), (0, 0, 0, 0))
+    draw_dog(SD(ImageDraw.Draw(im), ss), t, st)
     return im if facing > 0 else ImageOps.mirror(im)
 
 
@@ -470,9 +540,14 @@ def draw_dadi(sd, t, st):
         sd.ellipse((fx - 16, fy - 7, fx + 18, fy + 7), fill=SKIN_D, outline=OL, width=2)
     sd = upper(sd, st)
     sd.poly([(122, 180), (198, 180), (222, 420), (98, 420)], fill=(40, 150, 95), outline=OL, width=4)  # saree
+    sd.poly([(122, 180), (160, 180), (150, 420), (98, 420)], fill=tone((40, 150, 95), 0.85))   # saree fold shading
     sd.rect((100, 398, 220, 420), fill=(240, 190, 40))
+    for x in range(106, 218, 12):                                                            # border motif
+        sd.circle(x, 409, 3, fill=(170, 30, 70))
     sd.poly([(122, 182), (160, 182), (214, 330), (190, 344)], fill=(150, 30, 70), outline=OL, width=2)  # pallu
     sd.line([(196, 336), (212, 326)], (240, 190, 40), 6)
+    for k in range(5):
+        sd.circle(134 + k * 16, 196 + k * 28, 3, fill=(240, 190, 40))
     hands = dadi_hands(st, t)
     for sx, hand in zip((126, 194), hands):
         rlimb(sd, (sx, 196), hand, 62, 58, -1, SKIN_D, 13, 11)
@@ -500,6 +575,9 @@ def draw_dadi(sd, t, st):
     sd.rect((148, 152, 172, 184), fill=SKIN_D, outline=OL, width=3)
     sd.circle(hx - 34, hy - 10, 22, fill=(235, 235, 240), outline=OL, width=3)   # bun
     sd.circle(hx, hy, 40, fill=SKIN_D, outline=OL, width=3)
+    cel(sd, (hx - 40, hy - 40, hx + 40, hy + 40), SKIN_D, 3)
+    sd.circle(hx - 34, hy + 22, 5, fill=(245, 195, 50), outline=OL, width=1)                  # earring
+    sd.circle(hx + 26, hy + 14, 6, fill=(240, 150, 140))                                       # blush
     sd.chord((hx - 42, hy - 44, hx + 42, hy + 6), 180, 360, fill=(235, 235, 240), outline=OL, width=3)
     sd.circle(hx + 8, hy - 18, 4, fill=(220, 20, 40))                              # bindi
     for ex in (-8, 24):
@@ -508,6 +586,9 @@ def draw_dadi(sd, t, st):
             sd.line([(hx + ex - 10, hy - 18), (hx + ex + 10, hy - 10 if ex < 0 else hy - 22)], OL, 4)
         sd.circle(hx + ex + 2, hy + 1, 3, fill=OL)
     sd.line([(hx + 3, hy), (hx + 13, hy)], OL, 2)
+    for ex in (-8, 24):
+        sd.arc((hx + ex + 9, hy - 2, hx + ex + 19, hy + 8), 300, 30, tone(SKIN_D, 0.7), 2)   # laugh lines
+    sd.arc((hx + 14, hy + 6, hx + 24, hy + 16), 200, 360, (245, 195, 50), 2)                 # nose ring
     mx, my = hx + 10, hy + 22
     if st.get("talk") or face == "shock":
         sd.ellipse((mx - 9, my - 4, mx + 9, my + 12), fill=(150, 25, 45), outline=OL, width=2)
@@ -517,18 +598,19 @@ def draw_dadi(sd, t, st):
         sd.arc((mx - 10, my - 6, mx + 10, my + 8), 20, 160, OL, 3)
 
 
-def dadi_sprite(t, st, facing=-1):
-    im = Image.new("RGBA", (GW, GH), (0, 0, 0, 0))
-    draw_dadi(SD(ImageDraw.Draw(im)), t, st)
+def dadi_sprite(t, st, facing=-1, ss=1):
+    im = Image.new("RGBA", (GW * ss, GH * ss), (0, 0, 0, 0))
+    draw_dadi(SD(ImageDraw.Draw(im), ss), t, st)
     return im if facing > 0 else ImageOps.mirror(im)
 
 
 # ====================================================================== SET
 @lru_cache(maxsize=None)
-def kitchen():
-    im = Image.new("RGB", (W, H), (250, 220, 150))
+def kitchen(ss=SS):
+    """The kitchen set, drawn at ss x resolution (the frame is downsampled at the end)."""
+    im = Image.new("RGB", (W * ss, H * ss), (250, 220, 150))
     d = ImageDraw.Draw(im)
-    sd = SD(d)
+    sd = SD(d, ss)
     for y in range(0, WALL, 60):                          # wallpaper stripes
         for x in range(0, W, 60):
             sd.circle(x + 30 + (15 if (y // 60) % 2 else 0), y + 30, 4, fill=(240, 195, 120))

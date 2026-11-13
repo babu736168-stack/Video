@@ -113,3 +113,33 @@ if __name__ == "__main__":
     for tag, fn in (("A", version_a), ("B", version_b), ("C", version_c)):
         p = os.path.join(out, f"Ch01 - Introduction to Economics - thumbnail {tag}.png")
         fn().save(p, optimize=True); print("wrote", p)
+
+
+# ------------------------------------------------------------------ Chapter 2
+def ch02_a():
+    """₹20 + ₹50 + ₹100 = ₹170? The double-counting puzzle."""
+    im = bg()
+    badge(im, (40, 34), "RAMESH SINGH · CHAPTER 2", GOLD, size=30)
+    outline_text(im, (40, 118), "₹20 + ₹50 + ₹100", F("InterDisplay-Black", 82), WHITE)
+    outline_text(im, (40, 222), "= ₹170?", F("InterDisplay-Black", 104), GOLD)
+    put(im, "❌", (560, 290), 96)
+    outline_text(im, (44, 400), "GDP kaise ginte hain?", F("InterDisplay-Black", 56), WHITE, stroke=6)
+    outline_text(im, (44, 470), "NATIONAL INCOME", F("InterDisplay-Black", 80), ACC, stroke=8)
+    put(im, "🌾", (800, 230), 140); put(im, "🏭", (960, 230), 140); put(im, "🍕", (1120, 230), 150)
+    put(im, "🧮", (1060, 420), 150)
+    badge(im, (40, 610), "HINGLISH · FULL CLASS", RED, fg=WHITE, size=30)
+    logo(im, 150)
+    return im
+
+
+def ch02_b():
+    """GDP, GNP, NNP — the family."""
+    im = bg((60, 120, 200))
+    badge(im, (40, 34), "CHAPTER 2 · RAMESH SINGH 18e", GOLD, size=30)
+    outline_text(im, (40, 118), "GDP · GNP · NNP", F("InterDisplay-Black", 100), GOLD)
+    outline_text(im, (40, 250), "Ek pizza se", F("InterDisplay-Black", 76), WHITE)
+    outline_text(im, (40, 340), "poori National Income!", F("InterDisplay-Black", 64), ACC, stroke=7)
+    put(im, "🍕", (980, 330), 260)
+    badge(im, (40, 610), "FULL CLASS · HINGLISH", RED, fg=WHITE, size=30)
+    logo(im, 140, (TW - 140 - 24, 24))
+    return im

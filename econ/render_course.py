@@ -327,7 +327,8 @@ class Course(Film):
     def frame(self, t):
         im = self.frame_inner(t)
         # channel logo in the corner of every screen (the end screen already shows it big)
-        if self.S.CHAPTER.get("logo") and not (self.t_end is not None and t >= self.t_end + 0.7):
+        on_map = self.t_master is not None and self.t_master <= t < (self.t_today or 1e9)
+        if self.S.CHAPTER.get("logo") and not on_map and not (self.t_end is not None and t >= self.t_end + 0.7):
             if getattr(self, "_bug", None) is None:
                 lg = Image.open(os.path.join(E.HERE, self.S.CHAPTER["logo"])).convert("RGBA")
                 sz = 104; lg = lg.resize((sz, sz), Image.LANCZOS)

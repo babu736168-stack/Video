@@ -34,8 +34,8 @@ def ear(cv):
     return []
 
 
-def _eye(cv, cx, s):
-    almond = ell(cx, 0, 20, 23, 0, 64)
+def _eye(cv, cx, s, ys=1.0, pup=1.0, lid=0.0, brow=0.0):
+    almond = ell(cx, 0, 20, 23 * ys, 0, 64)
     m = cv.mask(almond)
     cv.paint(m, Radial((cx, 0), 26, [(0, WHITE), (0.7, (250, 250, 255)), (1, (205, 212, 224))]))
     ix, iy = cx + s * 2, 3
@@ -43,13 +43,19 @@ def _eye(cv, cx, s):
     def inside(t):
         iris = ell(ix, iy, 15, 16, 0, 56)
         t.paint(t.mask(iris), Radial((ix, iy - 3), 17, [(0, (150, 92, 50)), (0.5, (74, 42, 24)), (1, (26, 14, 10))]))
-        t.paint(t.mask(ell(ix, iy, 7.2, 8, 0, 40)), (12, 8, 8))
+        t.paint(t.mask(ell(ix, iy, 7.2 * pup, 8 * pup, 0, 40)), (12, 8, 8))
     cv.clip(m, inside)
     cv.shade(m, 0.4, 5, 2.4, (60, 40, 60), toward=(0, 1))
     cv.dot(cx - s * 3, -5, 5.4, WHITE)
     cv.dot(cx + s * 9, 10, 2.4, WHITE)
+    if lid:
+        yi, yo = -10 + lid * 30, -10 + lid * 6
+        lidp = [(cx - s * 32, -50), (cx + s * 32, -50), (cx + s * 32, yi), (cx - s * 32, yo)]
+        cv.clip(m, lambda t: t.paint(t.mask(lidp), brown(0, -20, 50)))
+        cv.line([(cx - s * 26, yo), (cx + s * 26, yi)], 3.6)
     cv.line([(cx - 20, 0), (cx - 13, -18), (cx + 5, -25), (cx + 18, -15), (cx + 21, 0)], 3.2)
-    cv.stroke([(cx - 20, -34 - s * 2), (cx, -42), (cx + 20, -34 + s * 2)], 3, 7, (70, 42, 24))
+    ob, ib = -34 - brow * 8, -34 + brow * 14
+    cv.stroke([(cx + s * 20, ob), (cx, (ob + ib) / 2 - 8), (cx - s * 20, ib)], 3, 7, (70, 42, 24))
 
 
 def eyes(cv):

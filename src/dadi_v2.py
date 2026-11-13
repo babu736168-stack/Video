@@ -54,20 +54,33 @@ def head(cv):
     return []
 
 
-def eyes(cv):
+def eyes(cv, state="open"):
+    brow = {"angry": 1.0, "wide": -0.8, "open": 0.0}.get(state, 0.0)
     for s in (-1, 1):
         cx = s * 34
-        almond = spline([(cx - 15, 2), (cx - 7, -8), (cx + 7, -9), (cx + 16, 1), (cx + 8, 8), (cx - 6, 8)], True, 8)
-        m = cv.mask(almond)
-        cv.paint(m, WHITE)
+        if state in ("closed", "sleep", "happy"):
+            if state == "happy":
+                cv.line([(cx - 14, 6), (cx, -7), (cx + 14, 6)], 3.0)
+            else:
+                cv.line([(cx - 14, 0), (cx, 7), (cx + 14, 0)], 3.0)
+                cv.line([(cx + s * 14, 2), (cx + s * 20, 6)], 1.6)
+        else:
+            wide = state == "wide"
+            almond = spline([(cx - 15, 2), (cx - 7, -8 - 3 * wide), (cx + 7, -9 - 3 * wide), (cx + 16, 1), (cx + 8, 8), (cx - 6, 8)], True, 8)
+            m = cv.mask(almond)
+            cv.paint(m, WHITE)
 
-        def inside(t, cx=cx):
-            t.paint(t.mask(ell(cx, 0, 7.4, 8, 0, 40)), Radial((cx, -1), 8, [(0, (130, 84, 52)), (1, (34, 20, 16))]))
-            t.paint(t.mask(ell(cx, 0, 3.4, 3.8, 0, 24)), (14, 10, 10))
-        cv.clip(m, inside)
-        cv.dot(cx - 2.5, -3, 2.2, WHITE)
-        cv.line([(cx - 16, 2), (cx - 7, -9), (cx + 7, -10), (cx + 17, 1)], 2.0)
-        cv.stroke([(cx - 18, -22), (cx, -26), (cx + 18, -21)], 2.2, 4.4, (160, 160, 180))
+            def inside(t, cx=cx, wide=wide):
+                pr = 0.6 if wide else 1.0
+                t.paint(t.mask(ell(cx, 0, 7.4, 8, 0, 40)), Radial((cx, -1), 8, [(0, (130, 84, 52)), (1, (34, 20, 16))]))
+                t.paint(t.mask(ell(cx, 0, 3.4 * pr, 3.8 * pr, 0, 24)), (14, 10, 10))
+            cv.clip(m, inside)
+            cv.dot(cx - 2.5, -3, 2.2, WHITE)
+            cv.line([(cx - 16, 2), (cx - 7, -9), (cx + 7, -10), (cx + 17, 1)], 2.0)
+            if state == "angry":
+                cv.line([(cx + s * 18, -10), (cx - s * 18, 4)], 3.0, (150, 100, 70))
+        ob, ib = -22 - brow * 5, -22 + brow * 7
+        cv.stroke([(cx + s * 18, ob), (cx, (ob + ib) / 2 - 4), (cx - s * 18, ib)], 2.2, 4.4, (160, 160, 180))
         lens = ell(cx, 0, 24, 24, 0, 72)
         cv.paint(cv.mask(lens), Linear((cx - 20, -20), (cx + 20, 20), [(0, (200, 230, 255)), (1, (140, 180, 230))]), 0.22)
         cv.stroke([(cx - 14, -12), (cx - 8, -18), (cx - 2, -20)], 2.4, 0.6, WHITE, alpha=0.9)
@@ -173,10 +186,30 @@ def broom(cv):
     return []
 
 
+def foot_one(cv):
+    cx = 0
+    solid(cv, spline(ell(cx, 14, 17, 11, 0, 40), True, 6), skin(cx, 8, 30), None, 1.5, (0.3, 3, 2), (0.4, 2, 1.5))
+    for k, (dx, r) in enumerate(((-9, 3.6), (-3, 3.8), (3, 3.6), (9, 3.2), (14, 2.8))):
+        solid(cv, ell(cx + dx, 24, r, r * 0.8, 0, 20), skin(cx, 20, 10), None, 1.0, None, None)
+    cv.line([(cx - 15, 0), (cx + 15, 0)], 2.4, (214, 156, 24))
+    cv.dot(cx, 3, 2.6, GOLD_L, 0.9)
+    return []
+
+
+def mouth(cv):
+    right = [(0, -8), (14, -9), (24, -3), (24, 8), (14, 20), (0, 24)]
+    poly = spline(mirror_pts(right), True, 8)
+    m = cv.mask(poly)
+    cv.paint(m, Radial((0, 8), 28, [(0, (150, 40, 56)), (1, (84, 10, 30))]))
+    cv.clip(m, lambda t: t.paint(t.mask(spline([(-14, 24), (-10, 12), (0, 8), (10, 12), (14, 24)], True, 6)), (232, 110, 128)))
+    cv.outline(poly, 2.4, (140, 40, 50))
+    return []
+
+
 SPEC = {
     "head": (head, 190, 230, 0, -16), "eyes": (eyes, 170, 80, 0, 0), "face": (face, 160, 160, 0, 0),
     "saree": (saree, 230, 300, 0, 26), "pallu": (pallu, 150, 250, 8, 4), "arm": (arm, 70, 130, 0, 50),
-    "hand": (hand, 70, 90, 0, 26), "feet": (feet, 110, 60, 0, 12), "broom": (broom, 120, 300, 0, 14),
+    "hand": (hand, 70, 90, 0, 26), "feet": (feet, 110, 60, 0, 12), "foot_one": (foot_one, 60, 50, 0, 12), "mouth": (mouth, 70, 50, 0, 8), "broom": (broom, 120, 300, 0, 14),
 }
 
 ASSEMBLY = [

@@ -56,8 +56,8 @@ def cap(cv):
     return []
 
 
-def _eye(cv, cx, s):
-    almond = ell(cx, 0, 18, 22, 0, 64)
+def _eye(cv, cx, s, ys=1.0, pup=1.0, lid=0.0, brow=0.0):
+    almond = ell(cx, 0, 18, 22 * ys, 0, 64)
     m = cv.mask(almond)
     cv.paint(m, Radial((cx, 0), 24, [(0, WHITE), (0.7, (250, 250, 255)), (1, (205, 212, 224))]))
     ix, iy = cx + s * 2, 3
@@ -65,14 +65,20 @@ def _eye(cv, cx, s):
     def inside(t):
         iris = ell(ix, iy, 13.5, 14.5, 0, 56)
         t.paint(t.mask(iris), Radial((ix, iy - 3), 15, [(0, (186, 120, 70)), (0.5, (96, 54, 32)), (1, (34, 18, 14))]))
-        t.paint(t.mask(ell(ix, iy, 6.4, 7.2, 0, 40)), (14, 10, 12))
+        t.paint(t.mask(ell(ix, iy, 6.4 * pup, 7.2 * pup, 0, 40)), (14, 10, 12))
     cv.clip(m, inside)
     cv.shade(m, 0.4, 5, 2.4, (60, 40, 60), toward=(0, 1))
     cv.dot(cx - s * 3 + s * 0, -5, 5.0, WHITE)
     cv.dot(cx + s * 8, 9, 2.2, WHITE)
+    if lid:
+        yi, yo = -10 + lid * 28, -10 + lid * 6
+        lidp = [(cx - s * 30, -50), (cx + s * 30, -50), (cx + s * 30, yi), (cx - s * 30, yo)]
+        cv.clip(m, lambda t: t.paint(t.mask(lidp), grey(0, -20, 40)))
+        cv.line([(cx - s * 24, yo), (cx + s * 24, yi)], 3.4)
     cv.line([(cx - 19, 0), (cx - 12, -17), (cx + 4, -23), (cx + 17, -14), (cx + 20, 0)], 3.4)
     cv.line([(cx + s * 17, -12), (cx + s * 26, -18)], 2.2)
-    cv.stroke([(cx - 18, -34), (cx, -40), (cx + 18, -32)], 2.5, 5, (86, 70, 72))
+    ob, ib = -34 - brow * 8, -32 + brow * 14
+    cv.stroke([(cx + s * 18, ob), (cx, (ob + ib) / 2 - 6), (cx - s * 18, ib)], 2.5, 5, (86, 70, 72))
 
 
 def eyes(cv):

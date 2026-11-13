@@ -80,9 +80,9 @@ def ear(cv):
 
 
 # ------------------------------------------------------------------ eyes
-def _eye(cv, cx, cy, s):
+def _eye(cv, cx, cy, s, ys=1.0, pup=1.0, lid=0.0, brow=0.0):
     def X(x, y):
-        return (cx + s * x, cy + y)
+        return (cx + s * x, cy + (y * ys if y < 0 else y))
     almond = spline([X(-24, 2), X(-13, -15), X(5, -21), X(22, -10), X(26, 4), X(14, 17), X(-4, 21), X(-18, 14)], True, 10)
     m = cv.mask(almond)
     cv.paint(m, Radial((cx, cy), 28, [(0, WHITE), (0.65, (250, 250, 255)), (1, (198, 208, 222))]))
@@ -96,17 +96,22 @@ def _eye(cv, cx, cy, s):
             t.stroke([(ix + 7 * math.cos(a), iy + 7 * math.sin(a)), (ix + 14 * math.cos(a), iy + 14 * math.sin(a))],
                      0.8, 0.3, (30, 110, 50), alpha=0.5)
         t.outline(iris, 1.0, (14, 60, 30))
-        t.paint(t.mask(ell(ix, iy, 6, 9.5, n=48)), (18, 14, 18))
+        t.paint(t.mask(ell(ix, iy, 6 * pup, 9.5 * pup, n=48)), (18, 14, 18))
     cv.clip(m, inside)
     cv.shade(m, 0.45, 5, 2.4, (60, 40, 60), toward=(0, 1))
     cv.dot(cx + s * -2, cy - 6, 4.3, WHITE)
     cv.dot(cx + s * 10, cy + 7, 2.0, WHITE)
+    if lid:
+        yi, yo = -12 + lid * 32, -12 + lid * 6
+        lidp = [X(-34, -60), X(34, -60), X(34, yi), X(-34, yo)]
+        cv.clip(m, lambda t: t.paint(t.mask(lidp), orange(0, -30, 60)))
+        cv.line([X(-30, yo), X(30, yi)], 4.6)
     cv.line([X(-27, 4), X(-14, -15), X(5, -22), X(22, -11), X(29, 3)], 4.4)               # upper lid
     cv.line([X(25, -8), X(35, -15)], 2.6)
     cv.line([X(26, -3), X(36, -4)], 2.2)
     cv.line([X(-20, 15), X(-4, 21), X(14, 17)], 1.2, (70, 50, 50))
-    cv.stroke([X(-28, -33), X(-4, -41), X(26, -31)], 3, 3, (120, 52, 16))
-    cv.stroke([X(-28, -33), X(-4, -41), X(26, -31)], 3.5, 8, (120, 52, 16))
+    ob, ib = -33 - brow * 8, -31 + brow * 14
+    cv.stroke([X(-28, ob), X(-4, (ob + ib) / 2 - 8), X(26, ib)], 3.5, 8, (120, 52, 16))
 
 
 def eyes(cv):

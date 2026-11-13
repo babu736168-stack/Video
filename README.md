@@ -45,3 +45,12 @@ cd src && python3 render_video.py
 To change the story, edit the `lines` lists in `src/render_video.py`. Scene length and voice timing adjust automatically.
 
 *A fictional, good-natured parody. Not affiliated with or endorsed by NVIDIA or Jensen Huang.*
+
+## Character anatomy sheets (The Great Laddoo Heist)
+Each character is broken into its body parts, enlarged and labelled, with the assembled character and numbered markers.
+
+| File | What it is |
+|---|---|
+| `output/anatomy_tubby_billa.png`, `anatomy_chhotu.png`, `anatomy_sheru.png`, `anatomy_dadi.png` | One sheet per character |
+| `output/parts/<character>/NN_<part>.png` | Every body part as its own transparent PNG |
+| `src/body_parts.py` | Generates all of the above (`cd src && python3 body_parts.py`) |

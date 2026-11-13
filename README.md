@@ -1,5 +1,15 @@
 # Cartoon Comedy Videos
 
+## 🐱🐭 The Great Laddoo Heist - detailed edition (best version)
+The same story rebuilt with the detailed characters: jointed motion, real expressions and a lit kitchen. See `docs/great_laddoo_heist_v2.md`.
+
+| File | What it is |
+|---|---|
+| `output/great_laddoo_heist_v2.mp4` | The finished video (1280×720, 24 fps, with sound) |
+| `src/kitchen_v2.py` | The renderer (`cd src && python3 kitchen_v2.py`) |
+
+---
+
 ## 🐱🐭 The Great Laddoo Heist
 An original cat-and-mouse slapstick cartoon (about 2 minutes) set in an Indian kitchen: Tubby Billa the cat, Chhotu the mouse, Sheru the dog and Dadi.
 

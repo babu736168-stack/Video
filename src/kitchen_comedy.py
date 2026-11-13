@@ -155,7 +155,7 @@ def cat_state(t, f):
     elif t < 42.4:
         S.update(x=lin(260, 690, seg(t, 41.0, 42.4)), facing=1)
         bob = -abs(math.sin(t * 10)) * 6
-        st.update(face="grin", pose="pan_up", crouch=20)
+        st.update(face="grin", pose="pan_up", crouch=20, tiptoe=True)
     elif t < 51.2:
         S.update(x=SACK_X, facing=-1)
         st.update(face="grin", pose="pan_up", crouch=40, tail_floor=True, peek=True)
@@ -185,7 +185,7 @@ def cat_state(t, f):
     elif t < 61.0:
         S.update(x=lin(660, 820, seg(t, 59.3, 61.0)), facing=1)
         bob = -abs(math.sin(t * 10)) * 5
-        st.update(face="grin", pose="pan_up", crouch=15)
+        st.update(face="grin", pose="pan_up", crouch=15, tiptoe=True)
     elif t < 61.2:
         S.update(x=820, facing=1)
         st.update(face="grin", pose="pan_up")
@@ -237,7 +237,6 @@ def cat_state(t, f):
         st.update(pose="run", face="yeow", lump=True)
     else:
         S["mode"] = "hidden"
-    S["yoff"] += bob
     st["talk"] = talking("cat", t, f)
     S["st"] = st
     return S
@@ -255,7 +254,7 @@ def cat_head(S):
 def mouse_state(t, f):
     st = dict(pose="idle", face="smile")
     S = dict(mode="stand", x=HOLE_X, y=GROUND, yoff=0, facing=1)
-    hop = lambda: -abs(math.sin(t * 16)) * 6
+    hop = lambda: 0
     if t < 12 or 38.2 <= t < 42.5:
         S["mode"] = "hidden"
     elif t < 13.2:
@@ -266,6 +265,7 @@ def mouse_state(t, f):
         S.update(x=x, y=y)
     elif t < 15.6:
         S.update(x=lin(150, 515, seg(t, 13.6, 15.6)), yoff=hop())
+        st["tiptoe"] = True
     elif t < 17.0:
         S.update(x=515, y=lin(GROUND, TABLE_TOP, seg(t, 15.6, 17.0)))
         st["pose"] = "climb"
@@ -442,6 +442,130 @@ def dadi_state(t, f):
     return S
 
 
+# ---------------------------------------------------------------- limb animation engine
+GAIT = {
+    "cat":   dict(base=[(160, 352), (214, 352)], walk=(42, 18), run=(78, 36), tip=(46, 30),
+                  thr=320, lean=16, bob=7, skip=("cling", "flail")),
+    "mouse": dict(base=[(74, 156), (98, 156)], walk=(16, 8), run=(30, 14), tip=(16, 12),
+                  thr=220, lean=7, bob=3, skip=("climb",)),
+    "dog":   dict(base=[(95, 302), (140, 302), (215, 302), (255, 302)], walk=(44, 16), run=(66, 30),
+                  tip=(44, 16), thr=150, lean=0, bob=6, offs=[0.0, 0.5, 0.5, 0.0], skip=("sleep", "sit")),
+    "dadi":  dict(base=[(140, 425), (174, 425)], walk=(34, 9), run=(46, 14), tip=(34, 9),
+                  thr=380, lean=6, bob=3, skip=()),
+}
+STATE_FN = {}
+_TABS = {}
+TAB_DT = 1 / 96
+
+
+def _table(name):
+    """Distance travelled (x and y) and speed for a character, sampled across the whole story."""
+    if name not in _TABS:
+        fn = STATE_FN[name]
+        ts = np.arange(0, STORY + 0.5, TAB_DT)
+        xs, ys, ok = [], [], []
+        for t in ts:
+            S = fn(t, 0)
+            xs.append(S["x"])
+            ys.append(S.get("y", 0))
+            ok.append(S["mode"] == "stand")
+        xs, ys, ok = np.array(xs), np.array(ys), np.array(ok)
+        dx, dy = np.abs(np.diff(xs, prepend=xs[0])), np.abs(np.diff(ys, prepend=ys[0]))
+        bad = ~(ok & np.roll(ok, 1)) | (dx > 60) | (dy > 60)
+        dx[bad], dy[bad] = 0, 0
+        _TABS[name] = (np.cumsum(dx), np.cumsum(dy), dx / TAB_DT, dy / TAB_DT)
+    return _TABS[name]
+
+
+def motion_at(name, t):
+    dX, dY, vx, vy = _table(name)
+    i = int(clamp(t / TAB_DT, 0, len(dX) - 1))
+    a, b = max(0, i - 4), min(len(dX), i + 5)
+    return dX[i], dY[i], float(vx[a:b].mean()), float(vy[a:b].mean())
+
+
+def gait_pose(name, d, v, st):
+    """Distance-driven stepping: stance feet stay planted on the floor, swing feet lift and arc forward."""
+    G = GAIT[name]
+    kind = "tip" if st.get("tiptoe") else ("run" if v > G["thr"] else "walk")
+    S_, H_ = G[kind]
+    amp = clamp(v / 70)
+    offs = G.get("offs", [0.0, 0.5])
+    feet, us = [], []
+    for i, (bx, by) in enumerate(G["base"]):
+        p = (d / (2 * S_) + offs[i]) % 1
+        if p < 0.5:
+            u, h = S_ / 2 - S_ * (p / 0.5), 0.0
+        else:
+            q = (p - 0.5) / 0.5
+            u, h = -S_ / 2 + S_ * ease(q), H_ * math.sin(math.pi * q)
+        feet.append((bx + u * amp, by - h * amp))
+        us.append(u * amp)
+    p0 = (d / (2 * S_)) % 1
+    bob = G["bob"] * amp * (0.5 - 0.5 * math.cos(4 * math.pi * p0)) * (1.5 if kind == "run" else 1)
+    st["feet"] = feet
+    st["swing"] = (us[0], us[1])
+    st["lean"] = G["lean"] * amp * (1.0 if kind == "run" else 0.35)
+    if name == "cat":
+        st["bob"] = -bob
+    else:
+        st["bob_y"] = -bob
+    if kind == "tip":
+        st["tiptoe"] = True
+    return st
+
+
+def apply_gait(name, S, t):
+    st = S["st"]
+    if S["mode"] != "stand":
+        return
+    d, dy, v, vy = motion_at(name, t)
+    if name == "mouse" and st.get("pose") == "climb" and vy > 10:
+        ph = dy / 18 * math.pi
+        st["hands"] = ((78, 50 + 12 * math.sin(ph)), (106, 50 - 12 * math.sin(ph)))
+        st["feet"] = [(76, 150 - 9 * math.sin(ph)), (98, 150 + 9 * math.sin(ph))]
+        return
+    if v < 12 or st.get("pose") in GAIT[name]["skip"] or abs(S.get("yoff", 0)) > 8:
+        return
+    gait_pose(name, d, v, st)
+
+
+HANDS_FN = {"cat": K.cat_hands, "mouse": K.mouse_hands, "dadi": K.dadi_hands}
+WEIGHTS = (1.0, 0.85, 0.7, 0.55, 0.4, 0.28)
+
+
+def animate(name, t, f):
+    """State at time t with the gait applied and hand/crouch poses blended over the last ~0.18 s,
+    so pose changes ease in instead of snapping."""
+    fn = STATE_FN[name]
+    S = fn(t, f)
+    apply_gait(name, S, t)
+    if name not in HANDS_FN or S["mode"] not in ("stand", "rot"):
+        return S
+    acc, wsum, cr = [0.0] * 4, 0.0, 0.0
+    for k, w in enumerate(WEIGHTS):
+        tk = t - k * 0.035
+        if tk < 0:
+            break
+        Sk = S if k == 0 else fn(tk, f)
+        if Sk["mode"] != S["mode"] or Sk.get("facing") != S.get("facing"):
+            continue
+        if k:
+            apply_gait(name, Sk, tk)
+        (lx, ly), (rx, ry) = HANDS_FN[name](Sk["st"], tk)
+        acc[0] += w * lx
+        acc[1] += w * ly
+        acc[2] += w * rx
+        acc[3] += w * ry
+        cr += w * Sk["st"].get("crouch", 0)
+        wsum += w
+    st = S["st"]
+    st["hands"] = ((acc[0] / wsum, acc[1] / wsum), (acc[2] / wsum, acc[3] / wsum))
+    if name == "cat":
+        st["crouch"] = cr / wsum
+    return S
+
+
 def paste(img, spr, x, y, ax, ay, facing):
     axx = ax if facing > 0 else spr.width - ax
     img.paste(spr, (int(x - axx), int(y - ay)), spr)
@@ -524,7 +648,7 @@ def render_world(t, f):
     sd = SD(d)
     K.fan(sd, t, 8)
     K.rug(sd, 400, GROUND)
-    C, Mo, D, G = cat_state(t, f), mouse_state(t, f), dog_state(t, f), dadi_state(t, f)
+    C, Mo, D, G = animate("cat", t, f), animate("mouse", t, f), animate("dog", t, f), animate("dadi", t, f)
     sack_front = inside(t, [(24.3, 26.6), (42.4, 51.2)])
     if not sack_front:
         K.flour_sack(sd, t >= 25.2)
@@ -704,9 +828,10 @@ def render_title(t, f):
     u = (t / TITLE)
     mx = lin(-100, 1400, u * 1.2)
     k = 1.0
-    m = K.mouse_sprite(t, dict(pose="carry_run", face="smile"), 1, 1.3)
+    v = 1500 * 1.2 / TITLE
+    m = K.mouse_sprite(t, gait_pose("mouse", mx, v, dict(pose="carry_run", face="smile")), 1, 1.3)
     img.paste(m, (int(mx), 520), m)
-    c = K.cat_sprite(t, dict(pose="run", face="grin"), 1)
+    c = K.cat_sprite(t, gait_pose("cat", mx, v, dict(pose="run", face="grin")), 1)
     img.paste(c, (int(mx - 360), 350), c)
     return img
 
@@ -823,6 +948,9 @@ def build_audio(path, story0, total):
         tr.laugh(S + t, d, n=4, gain=0.25, seed=int(t))
     tr.music(S + STORY, total, 100, [0, 5, 7, 0], "keynote")
     tr.write(path)
+
+
+STATE_FN.update(cat=cat_state, mouse=mouse_state, dog=dog_state, dadi=dadi_state)
 
 
 def timeline():

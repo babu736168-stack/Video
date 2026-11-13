@@ -24,6 +24,43 @@ MOUSE_C, MOUSE_L = (150, 130, 125), (205, 190, 180)
 DOG_C, DOG_L = (160, 100, 55), (245, 230, 210)
 
 
+def ik(root, target, l1, l2, bend):
+    """Two-bone IK: returns the middle joint (knee / elbow). bend=+1 bends one way, -1 the other.
+    If the target is out of reach the limb straightens and stretches (rubber-hose style)."""
+    dx, dy = target[0] - root[0], target[1] - root[1]
+    d = math.hypot(dx, dy) or 1e-6
+    if d >= l1 + l2:
+        u = l1 / (l1 + l2)
+        return (root[0] + dx * u, root[1] + dy * u)
+    d = max(d, abs(l1 - l2) + 0.5)
+    a = math.acos(max(-1.0, min(1.0, (l1 * l1 + d * d - l2 * l2) / (2 * l1 * d))))
+    ang = math.atan2(dy, dx) - bend * a
+    return (root[0] + l1 * math.cos(ang), root[1] + l1 * math.sin(ang))
+
+
+def rlimb(sd, root, target, l1, l2, bend, color, w1, w2=None):
+    """Draw a tapered two-segment limb solved with IK. Returns (joint, end)."""
+    w2 = w2 or w1 * 0.8
+    j = ik(root, target, l1, l2, bend)
+    wm = (w1 + w2) / 2
+    segs = ((root, j, w1), (j, target, w2))
+    pts = ((root, w1), (j, wm), (target, w2))
+    for a, b, w in segs:
+        sd.line([a, b], OL, w + 6)
+    for p, w in pts:
+        sd.circle(p[0], p[1], (w + 6) / 2, fill=OL)
+    for a, b, w in segs:
+        sd.line([a, b], color, w)
+    for p, w in pts:
+        sd.circle(p[0], p[1], w / 2, fill=color)
+    return j, target
+
+
+def upper(sd, st):
+    """Scaled-draw for the upper body, shifted by lean (x) and bob (y)."""
+    return SD(sd.d, sd.k, sd.ox + st.get("lean", 0) * sd.k, sd.oy + st.get("bob_y", 0) * sd.k)
+
+
 def laddoo(sd, x, y, r=13):
     sd.circle(x, y, r, fill=(250, 165, 30), outline=(170, 90, 10), width=2)
     rng = random.Random(int(x * 7 + y))
@@ -66,12 +103,14 @@ CW, CH, CAX, CAY = 380, 380, 190, 370
 
 
 def cat_hands(st, t):
+    if "hands" in st:
+        return st["hands"]
     p = st.get("pose", "idle")
-    c = st.get("crouch", 0)
+    c = st.get("crouch", 0) + st.get("bob", 0)
     j = 3 * math.sin(t * 30)
-    run = math.sin(t * 22) * 30
+    sw = st.get("swing", (0, 0))
     return {
-        "idle": ((150, 285 + c), (232, 285 + c)),
+        "idle": ((152 - sw[1] * 0.8, 285 + c), (228 - sw[0] * 0.8, 285 + c)),
         "rub": ((185 + j, 245 + c), (210 - j, 245 + c)),
         "reach": ((285, 215 + c), (292, 240 + c)),
         "pan_up": ((150, 270 + c), (228, 110 + c)),
@@ -81,7 +120,7 @@ def cat_hands(st, t):
         "cling": ((150, 70), (232, 70)),
         "flail": ((120 + 20 * math.sin(t * 20), 90 + 20 * math.cos(t * 17)),
                   (260 + 20 * math.cos(t * 20), 90 + 20 * math.sin(t * 15))),
-        "run": ((160 + run, 250), (215 - run, 250)),
+        "run": ((175 - sw[1] * 1.1, 252 + c - abs(sw[1]) * 0.3), (212 - sw[0] * 1.1, 252 + c - abs(sw[0]) * 0.3)),
         "hide_pan": ((130, 262 + c), (255 + 10 * math.sin(t * 10), 210 + c)),
         "point": ((150, 285 + c), (310, 175 + c)),
         "shake": ((140 + j * 4, 230), (240 - j * 4, 230)),
@@ -93,10 +132,12 @@ def draw_cat(sd, t, st):
     flour = st.get("flour", False)
     body = (238, 238, 240) if flour else ORANGE
     dark = (200, 200, 205) if flour else ORANGE_D
-    c = st.get("crouch", 0)
+    c = st.get("crouch", 0) + st.get("bob", 0)
     pose = st.get("pose", "idle")
     face = st.get("face", "smirk")
     L, R = cat_hands(st, t)
+    lean = st.get("lean", 0)
+    base_sd, sd = sd, SD(sd.d, sd.k, sd.ox + lean * sd.k, sd.oy)
     # tail (with a mousetrap on it after the SNAP)
     wag = 12 * math.sin(t * 3)
     if st.get("tail_floor"):
@@ -109,20 +150,23 @@ def draw_cat(sd, t, st):
         tx, ty = tail[-1]
         sd.rect((tx - 30, ty - 12, tx + 30, ty + 12), fill=(200, 160, 100), outline=OL, width=3)
         sd.line([(tx - 24, ty - 10), (tx + 24, ty - 10)], (160, 160, 170), 4)
-    # legs
-    if pose == "run":
-        a = t * 22
-        feet = [(180 + 34 * math.cos(a), 345 + 14 * math.sin(a)), (180 + 34 * math.cos(a + math.pi), 345 + 14 * math.sin(a + math.pi))]
-        for k in range(3):   # speed blur
-            sd.arc((140 - k * 6, 315, 220 + k * 6, 372), 0, 180, (200, 200, 210), 2)
-    else:
-        feet = [(158, 352), (215, 352)]
-    for hip, foot in zip(((168, 290 + c), (205, 290 + c)), feet):
-        knee = ((hip[0] + foot[0]) / 2 + (c * 0.4 if hip[0] > 180 else -c * 0.4), (hip[1] + foot[1]) / 2)
-        limb(sd, [hip, knee, foot], body, 24)
-        sd.ellipse((foot[0] - 20, foot[1] - 10, foot[0] + 24, foot[1] + 12), fill=(255, 255, 255), outline=OL, width=3)
-    # back arm
-    limb(sd, [(160, 215 + c), L], body, 18)
+    # legs: two-bone IK from the hips to the (gait-driven) feet
+    feet = st.get("feet") or [(160, 352), (214, 352)]
+    order = sorted(range(2), key=lambda i: 0 if i == 1 else 1)
+    for i in order:
+        hip, foot = ((166 + lean, 290 + c), (206 + lean, 290 + c))[i], feet[i]
+        shade = body if i == 0 else tuple(int(v * 0.88) for v in body)
+        rlimb(base_sd, hip, foot, 35, 34, 1, shade, 24, 19)
+        lift = 352 - foot[1]
+        tilt = min(10, lift * 0.4)
+        if st.get("tiptoe"):
+            base_sd.ellipse((foot[0] - 10, foot[1] - 12, foot[0] + 22, foot[1] + 6), fill=(255, 255, 255), outline=OL, width=3)
+        else:
+            base_sd.poly([(foot[0] - 18, foot[1] - 8 - tilt * 0.3), (foot[0] + 22, foot[1] - 8 + tilt),
+                          (foot[0] + 26, foot[1] + 8 + tilt), (foot[0] - 18, foot[1] + 10 - tilt * 0.3)],
+                         fill=(255, 255, 255), outline=OL, width=3)
+    # back arm (IK elbow)
+    _, L = rlimb(sd, (160, 215 + c), L, 42, 40, -1, tuple(int(v * 0.88) for v in body), 18, 14)
     # body
     sd.ellipse((128, 185 + c, 238, 312 + c), fill=body, outline=OL, width=4)
     sd.ellipse((158, 205 + c, 222, 306 + c), fill=CREAM if not flour else (250, 250, 250))
@@ -190,7 +234,7 @@ def draw_cat(sd, t, st):
         sd.rect((hx - 74, hy + 2, hx + 74, hy + 16), fill=(160, 165, 175), outline=OL, width=3)
         sd.arc((hx - 50, hy - 60, hx - 10, hy - 20), 200, 260, (240, 240, 250), 4)
     # front arm
-    limb(sd, [(215, 215 + c), R], body, 18)
+    _, R = rlimb(sd, (215, 215 + c), R, 42, 40, -1, body, 18, 14)
     for hand in (L, R):
         sd.circle(hand[0], hand[1], 13, fill=(255, 255, 255), outline=OL, width=3)
     if pose in ("pan_up", "pan_swing", "hide_pan") and st.get("pan", True):
@@ -236,22 +280,36 @@ def cat_sprite(t, st, facing=1):
 MW, MH, MAX, MAY = 170, 170, 85, 162
 
 
-def draw_mouse(sd, t, st):
+def mouse_hands(st, t):
+    if "hands" in st:
+        return st["hands"]
     pose = st.get("pose", "idle")
-    face = st.get("face", "smile")
-    run = math.sin(t * 26) * 8 if pose in ("run", "carry_run") else 0
-    sd.arc((10, 100, 70, 150), 160, 330, (240, 160, 170), 4)                 # tail
-    for k, fx in enumerate((70 + run, 96 - run)):
-        sd.line([(fx + 4, 132), (fx, 155)], MOUSE_C, 8)
-        sd.ellipse((fx - 6, 150, fx + 16, 162), fill=(245, 170, 180), outline=OL, width=2)
-    hands = {
-        "idle": ((66, 128), (112, 128)), "run": ((70 + run, 118), (112 - run, 116)),
+    sw = st.get("swing", (0, 0))
+    by = st.get("bob_y", 0)
+    return {
+        "idle": ((70 - sw[1] * 0.8, 126 + by), (108 - sw[0] * 0.8, 126 + by)),
+        "run": ((84 - sw[1] * 1.1, 116 + by), (102 - sw[0] * 1.1, 114 + by)),
         "carry": ((70, 52), (100, 52)), "carry_run": ((70, 52), (100, 52)),
         "climb": ((78, 52), (106, 48)), "laugh": ((76, 122), (104, 122)),
         "wave": ((66, 128), (126, 64 + 8 * math.sin(t * 14))), "push": ((122, 110), (130, 104)),
         "fork": ((110, 110), (122, 106)), "cheese": ((110, 104), (122, 104)),
         "give": ((120, 96), (128, 96)), "eat": ((100, 88), (110, 90)), "sniff": ((66, 128), (112, 128)),
-    }.get(pose, ((66, 128), (112, 128)))
+    }.get(pose, ((70, 126), (108, 126)))
+
+
+def draw_mouse(sd, t, st):
+    pose = st.get("pose", "idle")
+    face = st.get("face", "smile")
+    hands = mouse_hands(st, t)
+    base_sd, sd = sd, upper(sd, st)
+    lean, by = st.get("lean", 0), st.get("bob_y", 0)
+    sd.arc((10, 100, 70, 150), 160 + st.get("tail_wave", 0), 330, (240, 160, 170), 4)     # tail
+    feet = st.get("feet") or [(74, 156), (98, 156)]
+    for i in (1, 0):
+        hip = ((80 + lean, 130 + by), (98 + lean, 130 + by))[i]
+        rlimb(base_sd, hip, feet[i], 14, 14, 1, MOUSE_C if i == 0 else (130, 112, 108), 8, 7)
+        fx, fy = feet[i]
+        base_sd.ellipse((fx - 6, fy - 6, fx + 16, fy + 6), fill=(245, 170, 180), outline=OL, width=2)
     sd.ellipse((58, 92, 122, 146), fill=MOUSE_C, outline=OL, width=3)
     sd.ellipse((76, 104, 116, 144), fill=MOUSE_L)
     hx, hy = 96, 74
@@ -282,8 +340,8 @@ def draw_mouse(sd, t, st):
         sd.ellipse((mx - 3, my + 2, mx + 7, my + 14), fill=(255, 110, 140), outline=OL, width=1)
     else:
         sd.arc((mx - 8, my - 6, mx + 8, my + 6), 20, 160, OL, 2)
-    for hand in hands:
-        limb(sd, [(90, 104), hand], MOUSE_C, 6)
+    for sh, hand in zip(((82, 106), (98, 106)), hands):
+        rlimb(sd, sh, hand, 12, 12, -1, MOUSE_C, 6, 5)
         sd.circle(hand[0], hand[1], 5, fill=(245, 170, 180), outline=OL, width=1)
     if pose in ("carry", "carry_run"):
         laddoo(sd, 85, 36, 18)
@@ -320,10 +378,12 @@ def draw_dog(sd, t, st):
         hx, hy = 290, 262
         sd.ellipse((240, 286, 300, 310), fill=DOG_L, outline=OL, width=3)
     elif pose == "run":
-        a = t * 24
-        for k in range(4):
-            fx = 100 + k * 55 + 25 * math.cos(a + k * 1.6)
-            limb(sd, [(100 + k * 55, 240), (fx, 300)], DOG_C, 20)
+        feet = st.get("feet") or [(95, 302), (140, 302), (215, 302), (255, 302)]
+        hips = [(100, 232), (140, 236), (220, 230), (255, 234)]
+        for i in (1, 3, 0, 2):     # far legs first, darker
+            col = DOG_C if i in (0, 2) else (125, 78, 42)
+            rlimb(sd, hips[i], feet[i], 36, 36, 1 if i < 2 else -1, col, 20, 15)
+            sd.ellipse((feet[i][0] - 14, feet[i][1] - 8, feet[i][0] + 16, feet[i][1] + 8), fill=DOG_L, outline=OL, width=2)
         sd.ellipse((60, 170, 290, 260), fill=DOG_C, outline=OL, width=4)
         sd.ellipse((140, 200, 240, 256), fill=DOG_L)
         hx, hy = 300, 168
@@ -386,27 +446,36 @@ GW, GH, GAX, GAY = 460, 440, 160, 430
 SKIN_D = (215, 160, 120)
 
 
-def draw_dadi(sd, t, st):
+def dadi_hands(st, t):
+    if "hands" in st:
+        return st["hands"]
     pose = st.get("pose", "walk")
-    face = st.get("face", "smile")
-    sw = 14 * math.sin(t * 7) if pose == "walk" else 0
-    for fx in (138 + sw * 0.5, 172 - sw * 0.5):
-        sd.ellipse((fx - 16, 418, fx + 18, 432), fill=SKIN_D, outline=OL, width=2)
-    sd.poly([(122, 180), (198, 180), (222, 420), (98, 420)], fill=(40, 150, 95), outline=OL, width=4)  # saree
-    sd.rect((100, 398, 220, 420), fill=(240, 190, 40))
-    sd.poly([(122, 182), (160, 182), (214, 330), (190, 344)], fill=(150, 30, 70), outline=OL, width=2)  # pallu
-    sd.line([(196, 336), (212, 326)], (240, 190, 40), 6)
-    hands = {
-        "walk": ((112 - sw, 300), (206 + sw, 300)),
+    sw = st.get("swing", (0, 0))
+    return {
+        "walk": ((116 - sw[1] * 0.9, 300), (204 - sw[0] * 0.9, 300)),
         "carry": ((232, 236), (252, 236)),
         "wag": ((112, 300), (236, 118 + 8 * math.sin(t * 16))),
-        "broom_up": ((112, 300), (205, 60)),
+        "broom_up": ((112 - sw[1] * 0.6, 300), (205, 60)),
         "broom_swat": ((112, 300), (275, 250)),
         "shock": ((128, 128), (192, 128)),
         "hips": ((118, 270), (202, 270)),
     }.get(pose, ((112, 300), (206, 300)))
+
+
+def draw_dadi(sd, t, st):
+    pose = st.get("pose", "walk")
+    face = st.get("face", "smile")
+    feet = st.get("feet") or [(140, 425), (174, 425)]
+    for fx, fy in feet:
+        sd.ellipse((fx - 16, fy - 7, fx + 18, fy + 7), fill=SKIN_D, outline=OL, width=2)
+    sd = upper(sd, st)
+    sd.poly([(122, 180), (198, 180), (222, 420), (98, 420)], fill=(40, 150, 95), outline=OL, width=4)  # saree
+    sd.rect((100, 398, 220, 420), fill=(240, 190, 40))
+    sd.poly([(122, 182), (160, 182), (214, 330), (190, 344)], fill=(150, 30, 70), outline=OL, width=2)  # pallu
+    sd.line([(196, 336), (212, 326)], (240, 190, 40), 6)
+    hands = dadi_hands(st, t)
     for sx, hand in zip((126, 194), hands):
-        limb(sd, [(sx, 196), hand], SKIN_D, 13)
+        rlimb(sd, (sx, 196), hand, 62, 58, -1, SKIN_D, 13, 11)
         sd.circle(hand[0], hand[1], 9, fill=SKIN_D, outline=OL, width=2)
         sd.circle(hand[0], hand[1] - 12, 6, outline=(240, 190, 40), width=3)   # bangle
     if pose == "carry":

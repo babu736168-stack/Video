@@ -1,5 +1,16 @@
 # Cartoon Comedy Videos
 
+## 🐱🐭 The Great Laddoo Heist
+An original cat-and-mouse slapstick cartoon (about 2 minutes) set in an Indian kitchen: Tubby Billa the cat, Chhotu the mouse, Sheru the dog and Dadi.
+
+| File | What it is |
+|---|---|
+| `output/great_laddoo_heist.mp4` | The finished video (1280×720, 24 fps, with sound) |
+| `docs/great_laddoo_heist.md` | Characters and scene-by-scene breakdown |
+| `src/kitchen_comedy.py`, `src/kitchen_art.py` | The renderer (`cd src && python3 kitchen_comedy.py`) |
+
+---
+
 ## 🐒 The Stylish Monkey and the Joker's Terrible Day
 A 2.5-minute cartoon comedy at a busy Indian railway station, with 5 characters (Monkey, Joker, Bird, Egg Seller, Bodybuilder).
 

@@ -1,4 +1,18 @@
-# The Jacket Must Go On 🧥
+# Cartoon Comedy Videos
+
+## 🐒 The Stylish Monkey and the Joker's Terrible Day
+A 2.5-minute cartoon comedy at a busy Indian railway station, with 5 characters (Monkey, Joker, Bird, Egg Seller, Bodybuilder).
+
+| File | What it is |
+|---|---|
+| `output/stylish_monkey_and_the_joker.mp4` | The finished video (1280×720, 24 fps, with sound) |
+| `output/stylish_monkey_cast.png` | The cast sheet |
+| `docs/stylish_monkey_story.md` | Characters and scene-by-scene breakdown |
+| `src/railway_comedy.py`, `src/railway_art.py` | The renderer (`cd src && python3 railway_comedy.py`) |
+
+---
+
+## The Jacket Must Go On 🧥
 
 A 2.5-minute animated cartoon parody with 5 original characters, plus a detailed analysis of NVIDIA CEO Jensen Huang that the story is based on.
 

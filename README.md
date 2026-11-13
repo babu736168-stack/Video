@@ -47,10 +47,12 @@ To change the story, edit the `lines` lists in `src/render_video.py`. Scene leng
 *A fictional, good-natured parody. Not affiliated with or endorsed by NVIDIA or Jensen Huang.*
 
 ## Character anatomy sheets (The Great Laddoo Heist)
-Each character is broken into its body parts, enlarged and labelled, with the assembled character and numbered markers.
+Detailed art for each character: every body part is drawn on its own (smooth outlines, gradient shading, fur, cloth and jewellery detail), then assembled into the full character with numbered markers and joint labels.
 
 | File | What it is |
 |---|---|
 | `output/anatomy_tubby_billa.png`, `anatomy_chhotu.png`, `anatomy_sheru.png`, `anatomy_dadi.png` | One sheet per character |
 | `output/parts/<character>/NN_<part>.png` | Every body part as its own transparent PNG |
-| `src/body_parts.py` | Generates all of the above (`cd src && python3 body_parts.py`) |
+| `src/charart.py` | Drawing toolkit (splines, gradients, shading, limbs) |
+| `src/cat_v2.py`, `mouse_v2.py`, `dog_v2.py`, `dadi_v2.py` | The detailed character parts |
+| `src/sheet_v2.py`, `src/build_v2.py` | Sheet layout and builder (`cd src && python3 build_v2.py`) |

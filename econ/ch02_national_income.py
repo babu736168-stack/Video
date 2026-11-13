@@ -14,7 +14,17 @@ taxes - subsidies). GVA at basic prices; GDP = GVA + product taxes - product sub
 prices) vs real (constant prices of a base year); GDP deflator = nominal / real x 100. Per capita income = national
 income / population. PPP compares price levels across countries; by PPP India is the world's third-largest economy.
 In India national income is estimated by the National Statistical Office (NSO), MoSPI; NSO formed in 2019 by merging
-the CSO and NSSO. The new series of January 2015 used base year 2011-12 and moved to GVA at basic prices.
+the CSO and NSSO. The new series of January 2015 used base year 2011-12, GVA at basic prices for sectors and GDP at
+constant market prices as the headline. On 27 February 2026 MoSPI released a new GDP series with base year 2022-23
+(a normal post-COVID year with full data; international norm: revise every 5-7 years), with methods such as double
+deflation and new data such as PLFS and ASUSE. Estimates come in stages: advance, provisional, revised. GVO (gross
+value of output) - intermediate consumption = GVA. Direct tax (on income, e.g. income tax) vs indirect tax (on goods
+and services, e.g. GST). Personal income = income households actually receive (national income - undistributed
+profits - corporate tax - social security contributions + transfer payments); disposable income = personal income -
+direct taxes = consumption + savings. CPI (retail prices) and WPI (wholesale prices) use a basket; the GDP deflator
+covers all goods and services in GDP. Uses of national income data: growth rate, comparison, policy and budget.
+Added after a search of chapter notes (topics listed for Ramesh Singh's National Income chapter: personal income,
+disposable income, GVA, GVO, base year, deflators, CPI, WPI).
 """
 BOOK = ["Introduction to Economics", "National Income", "Growth, Development & Happiness", "Evolution of the Indian Economy",
         "Economic Planning", "Planning in India", "Economic Reforms", "Inflation & Business Cycle",
@@ -34,6 +44,7 @@ TOPICS = [
     dict(id="family", name="NDP · GNP · NNP", label="The GDP family", icon="👨‍👩‍👧"),
     dict(id="prices", name="Factor Cost & Market Price", label="Which price?", icon="🏷️"),
     dict(id="methods", name="Three Methods", label="Product · Income · Expenditure", icon="🔢"),
+    dict(id="income", name="Personal & Disposable Income", label="What reaches the family?", icon="👛"),
     dict(id="real", name="Nominal vs Real", label="Is the rise real?", icon="🔍"),
     dict(id="percapita", name="Per Capita & PPP", label="Per person, across countries", icon="🌍"),
     dict(id="india", name="Who Counts in India?", label="NSO, new series", icon="🏛️"),
@@ -85,6 +96,8 @@ LINES = [
     (None, "किसान ने जोड़े — {बीस|20|🌾}। मिल ने — {तीस|30|🏭}। और शॉप ने — {पचास|50|🍕}।"),
     (None, "[punch] बीस, तीस, और पचास — कुल {सौ|100|✅}! ठीक पिज़्ज़ा की क़ीमत!"),
     (None, "[name] हर स्टेप पर जो नया जुड़ा — उसे कहते हैं — {वैल्यू एडेड|Value Added|➕}। और पूरी कंट्री का वैल्यू एडेड जोड़ें — तो बनता है {जी वी ए|GVA|🏭}, यानी ग्रॉस वैल्यू एडेड।"),
+    (None, "[scene] और अगर, हर स्टेप का पूरा प्रोडक्शन जोड़ दें — बीच की चीज़ों समेत — तो उसे कहते हैं {जी वी ओ|GVO|📦}, यानी {ग्रॉस वैल्यू ऑफ़ आउटपुट|Gross Value of Output|📦}।"),
+    (None, "[name] यानी — {जी वी ए बराबर जी वी ओ, घटा इंटरमीडिएट कंज़म्प्शन|GVA = GVO − Intermediate consumption|➖}।"),
     (None, "लेकिन पिज़्ज़ा बनाने में, शॉप का {ओवन|Oven|🔥} भी तो, थोड़ा घिस गया। उसका क्या?"),
 
     # ---------------------------------------------------------------- 3. The GDP family
@@ -104,6 +117,8 @@ LINES = [
     (None, "[name] सबसे अंदर — {फ़ैक्टर कॉस्ट|Factor Cost|🧑‍🍳}। यानी पिज़्ज़ा बनाने वालों की कमाई — वेजेज़, रेंट, इंटरेस्ट, और प्रॉफ़िट।"),
     (None, "[name] उसमें जोड़िए — प्रोडक्शन पर लगे टैक्स, और घटाइए — प्रोडक्शन पर मिली सब्सिडी। तो बनता है — {बेसिक प्राइस|Basic Price|🏭}।"),
     (None, "[name] और उसमें जोड़िए — प्रोडक्ट पर लगे टैक्स, जैसे {जी एस टी|GST|🧾} — और घटाइए, प्रोडक्ट पर सब्सिडी। तो बनता है — {मार्केट प्राइस|Market Price|🏷️}। यानी वो क़ीमत, जो रिया ने दी।"),
+    (None, "[scene] यहाँ टैक्स, दो तरह के समझिए। {डायरेक्ट टैक्स|Direct tax|👤} — जो सीधे इनकम पर लगे, जैसे {इनकम टैक्स|Income tax|🧾}।"),
+    (None, "और {इनडायरेक्ट टैक्स|Indirect tax|🏷️} — जो चीज़ों और सर्विसेज़ पर लगे, जैसे {जी एस टी|GST|🧾}। ये प्राइस में छुपा रहता है — इसलिए फ़ैक्टर कॉस्ट निकालने के लिए, इसे हटाया जाता है।"),
     ("ex:", "यानी सीढ़ी — {फ़ैक्टर कॉस्ट से बेसिक प्राइस, और बेसिक प्राइस से मार्केट प्राइस|Factor Cost → Basic Price → Market Price|🪜}। हर सीढ़ी पर — टैक्स जुड़ा, सब्सिडी घटी।"),
     (None, "[scene] और इंडिया की रिपोर्ट में — हर सेक्टर की कमाई, {बेसिक प्राइस पर जी वी ए|GVA at basic prices|🏭} से दिखती है।"),
     (None, "[punch] और जीडीपी? {जी वी ए, जमा प्रोडक्ट टैक्स, घटा प्रोडक्ट सब्सिडी|GVA + Product taxes − Subsidies|🧮}!"),
@@ -117,7 +132,16 @@ LINES = [
     (None, "[name] और तीसरा — {एक्सपेंडिचर मेथड|Expenditure Method|🛒}। फ़ाइनल चीज़ों पर, किसने कितना ख़र्च किया।"),
     (None, "लोगों का ख़र्च — जैसे रिया का पिज़्ज़ा — {सी|C|🛒}। कंपनियों का इन्वेस्टमेंट — जैसे नया ओवन — {आई|I|🔥}। गवर्नमेंट का ख़र्च — {जी|G|🏛️}। और {एक्सपोर्ट घटा इम्पोर्ट|Exports − Imports|🚢}।"),
     (None, "[punch] क्योंकि जो बना — वो किसी की कमाई बना, और किसी ने उस पर ख़र्च किया। इसलिए तीनों का जवाब — {एक|Ek|⚖️}!"),
-    (None, "लेकिन अगर पिज़्ज़ा का दाम ही बढ़ गया — तो क्या कंट्री सच में अमीर हुई?"),
+    (None, "पूरी कंट्री की इनकम तो गिन ली। लेकिन उसमें से — रिया के घर तक, कितनी पहुँची?"),
+
+    # ---------------------------------------------------------------- 6. Personal and disposable income
+    ("focus:income", "[scene] लेकिन रिया पूछती है — नेशनल इनकम तो बहुत बड़ी है। उसमें से, मेरे घर तक असल में, कितना पहुँचता है?"),
+    (None, "[name] परिवारों को जो इनकम असल में मिलती है — उसे कहते हैं {पर्सनल इनकम|Personal Income|👛}।"),
+    (None, "नेशनल इनकम में से — कंपनियों का बचाया हुआ प्रॉफ़िट, कॉर्पोरेट टैक्स, और सोशल सिक्योरिटी कंट्रीब्यूशन घटते हैं — और गवर्नमेंट से मिले {ट्रांसफ़र पेमेंट्स|Transfer payments|🎁}, जैसे पेंशन, जुड़ते हैं।"),
+    (None, "[name] और पर्सनल इनकम में से, {डायरेक्ट टैक्स|Direct tax|🧾} घटा दें — तो बचती है {डिस्पोज़ेबल इनकम|Disposable Income|💵}। यानी जो परिवार के हाथ में, ख़र्च के लिए बचा।"),
+    (None, "[punch] और डिस्पोज़ेबल इनकम के, सिर्फ़ दो रास्ते — {कंज़म्प्शन|Consumption|🛒}, या {सेविंग्स|Savings|🏦}!"),
+    ("ex:", "रिया के पापा की सैलरी में से, इनकम टैक्स कटा — बाक़ी डिस्पोज़ेबल इनकम। उसमें से रिया का पिज़्ज़ा — कंज़म्प्शन। और बैंक में बचा — सेविंग्स।"),
+    (None, "लेकिन अगर पिज़्ज़ा का दाम ही बढ़ गया — तो क्या ये इनकम, सच में बढ़ी?"),
 
     # ---------------------------------------------------------------- 6. Nominal vs real
     ("focus:real", "[scene] सोचिए — पिछले साल, रिया का पिज़्ज़ा सौ रुपये का था। और इस साल — {दो सौ|₹200|🍕} का।"),
@@ -127,7 +151,10 @@ LINES = [
     (None, "[name] और एक {बेस ईयर|Base year|📅} के, फ़िक्स्ड दामों पर गिनी गई — {रियल जीडीपी|Real GDP|🔍}। यानी {कॉन्स्टेंट प्राइसेज़|Constant prices|🔒} पर।"),
     (None, "[punch] रियल जीडीपी बताती है — सच में, {ज़्यादा बना|Zyada bana|🏭} या नहीं।"),
     (None, "[name] और दोनों का रेशियो — {जीडीपी डिफ़्लेटर|GDP Deflator|🎈}। नॉमिनल, भाग, रियल, गुणा सौ। ये बताता है — दाम कितने बढ़े।"),
-    (None, "अब कंट्री की कमाई तो पता चली। लेकिन रिया के हिस्से में, कितनी आई?"),
+    (None, "[scene] दाम नापने के, दो और बड़े इंडेक्स हैं। {सी पी आई|CPI|🛒} — यानी {कंज़्यूमर प्राइस इंडेक्स|Consumer Price Index|🛒}। रिटेल में, जो दाम हम-आप देते हैं।"),
+    (None, "और {डब्ल्यू पी आई|WPI|📦} — यानी {होलसेल प्राइस इंडेक्स|Wholesale Price Index|📦}। थोक बाज़ार के दाम।"),
+    (None, "[punch] जीडीपी डिफ़्लेटर — {जीडीपी की सारी चीज़ें|All goods & services in GDP|🧮} कवर करता है। और सी पी आई, डब्ल्यू पी आई — चुनी हुई चीज़ों की एक {बास्केट|Basket|🧺}।"),
+    (None, "अब कंट्री की कमाई तो पता चली। लेकिन एक इंसान के हिस्से में, एवरेज कितनी आई?"),
 
     # ---------------------------------------------------------------- 7. Per capita and PPP
     ("focus:percapita", "[scene] पूरी नेशनल इनकम को, कंट्री की {पॉपुलेशन|Population|👥} से भाग दीजिए।"),
@@ -144,9 +171,14 @@ LINES = [
     ("focus:india", "[scene] इंडिया में, नेशनल इनकम का हिसाब रखता है — {एन एस ओ|NSO|🏛️}। यानी नेशनल स्टैटिस्टिकल ऑफ़िस।"),
     (None, "ये है — {मिनिस्ट्री ऑफ़ स्टैटिस्टिक्स एंड प्रोग्राम इम्प्लीमेंटेशन|MoSPI|📊} का हिस्सा।"),
     (None, "[name] {दो हज़ार उन्नीस|2019|📅} में — {सी एस ओ|CSO|📁} और {एन एस एस ओ|NSSO|📋} — दोनों को मिलाकर, बना एन एस ओ।"),
-    (None, "[scene] और {जनवरी दो हज़ार पंद्रह|January 2015|📅} में, आई एक {नई सीरीज़|New series|🆕}।"),
-    (None, "इसमें बेस ईयर हुआ — {दो हज़ार ग्यारह-बारह|2011-12|📅}। और सेक्टर्स की कमाई, दिखने लगी — {बेसिक प्राइस पर जी वी ए|GVA at basic prices|🏭} में।"),
-    (None, "[punch] और बेस ईयर — {समय-समय पर बदला|Samay-samay par badla|🔄} जाता है। ताकि आज की इकॉनमी की, सही तस्वीर मिले।"),
+    (None, "[scene] {जनवरी दो हज़ार पंद्रह|January 2015|📅} में, आई एक {नई सीरीज़|New series|🆕}। बेस ईयर हुआ — {दो हज़ार ग्यारह-बारह|2011-12|📅}।"),
+    (None, "सेक्टर्स की कमाई दिखने लगी — {बेसिक प्राइस पर जी वी ए|GVA at basic prices|🏭} में। और ग्रोथ की हेडलाइन — फ़ैक्टर कॉस्ट की जगह, {कॉन्स्टेंट मार्केट प्राइस पर जीडीपी|GDP at constant market prices|🧮} से।"),
+    (None, "[scene] और फिर — एक बड़ी ख़बर! {सत्ताईस फ़रवरी, दो हज़ार छब्बीस|27 February 2026|📅} को — एम ओ एस पी आई ने जारी की, एक और {नई जीडीपी सीरीज़|New GDP series|🆕}।"),
+    (None, "[punch] नया बेस ईयर — {दो हज़ार बाईस-तेईस|2022-23|📅}! दो हज़ार ग्यारह-बारह की जगह।"),
+    (None, "क्यों? क्योंकि दो हज़ार बाईस-तेईस — कोविड के बाद का, एक {नॉर्मल साल|Normal saal|✅} था, और उसका डेटा भी पूरा था। और दुनिया का नियम — बेस ईयर, हर {पाँच से सात साल|5–7 saal|🔄} में बदले।"),
+    (None, "नई सीरीज़ में — नए तरीक़े, जैसे {डबल डिफ़्लेशन|Double deflation|🎈} — और नए डेटा, जैसे {पी एल एफ़ एस|PLFS|📋} और {ए एस यू एस ई|ASUSE|📋} सर्वे।"),
+    (None, "[scene] और हर साल का अनुमान, एक बार में फ़ाइनल नहीं होता। पहले — {एडवांस एस्टिमेट्स|Advance estimates|⏩}। फिर — {प्रोविज़नल|Provisional|📝}। और फिर — {रिवाइज़्ड एस्टिमेट्स|Revised estimates|✅}।"),
+    (None, "[name] और ये सारा डेटा, काम किस आएगा? कंट्री की {ग्रोथ रेट|Growth rate|📈} जानने में, दूसरे देशों से {तुलना|Comparison|🌍} में, और गवर्नमेंट की {पॉलिसी और बजट|Policy & Budget|🏛️} बनाने में।"),
 
     # ---------------------------------------------------------------- recap
     ("recap", "[scene] तो याद कीजिए, रिया के पिज़्ज़ा के साथ आज का सफ़र —"),
@@ -154,7 +186,9 @@ LINES = [
     (None, "{डबल काउंटिंग|Double counting|⚠️} से बचो — और {वैल्यू एडेड|Value Added|➕} गिनो।"),
     (None, "{एन डी पी, जी एन पी, एन एन पी|NDP, GNP, NNP|👨‍👩‍👧} — और {नेशनल इनकम|National Income|👑}।"),
     (None, "{तीन प्राइसेज़|Teen prices|🏷️} — और {तीन मेथड्स|Teen methods|🔢}।"),
-    (None, "{नॉमिनल और रियल|Nominal aur Real|🔍}, {पर कैपिटा|Per Capita|🧍}, {पी पी पी|PPP|⚖️} — और {एन एस ओ|NSO|🏛️}।"),
+    (None, "{पर्सनल इनकम|Personal Income|👛}, और {डिस्पोज़ेबल इनकम|Disposable Income|💵} — यानी कंज़म्प्शन, जमा सेविंग्स।"),
+    (None, "{नॉमिनल और रियल|Nominal aur Real|🔍}, {डिफ़्लेटर, सी पी आई, डब्ल्यू पी आई|Deflator, CPI, WPI|🎈}।"),
+    (None, "{पर कैपिटा|Per Capita|🧍}, {पी पी पी|PPP|⚖️}, {एन एस ओ|NSO|🏛️} — और नया बेस ईयर, {दो हज़ार बाईस-तेईस|2022-23|📅}।"),
 
     # ---------------------------------------------------------------- next class + about us + subscribe
     ("outro:Next: Chapter 3 — Growth, Development & Happiness", "[scene] लेकिन दोस्तों — मान लीजिए, कंट्री की कमाई बढ़ गई। लेकिन रिया के शहर में, न अच्छा हॉस्पिटल, न अच्छा स्कूल।"),

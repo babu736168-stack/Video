@@ -4,7 +4,7 @@ import math
 from charart import OL, ell, spline
 import cat_v2, mouse_v2, dog_v2, dadi_v2
 
-STATE_KW = {"open": {}, "wide": dict(ys=1.2, pup=0.6, brow=-0.8), "angry": dict(lid=1.0, brow=1.0),
+STATE_KW = {"open": {}, "raised": dict(brow=-0.7), "wide": dict(ys=1.2, pup=0.6, brow=-0.8), "angry": dict(lid=1.0, brow=1.0),
             "sly": dict(lid=0.55, brow=0.55), "worried": dict(brow=-0.6)}
 EYE_CFG = {   # module, eye centres with inward sign, half width, call(cv, cx, s, **kw)
     "cat": (cat_v2, ((-42, 1), (42, -1)), 24, lambda cv, cx, s, kw: cat_v2._eye(cv, cx, 0, s, **kw)),

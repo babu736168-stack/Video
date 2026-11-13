@@ -55,7 +55,7 @@ def head(cv):
 
 
 def eyes(cv, state="open"):
-    brow = {"angry": 1.0, "wide": -0.8, "open": 0.0}.get(state, 0.0)
+    brow = {"angry": 1.0, "wide": -0.8, "raised": -0.6, "open": 0.0}.get(state, 0.0)
     for s in (-1, 1):
         cx = s * 34
         if state in ("closed", "sleep", "happy"):

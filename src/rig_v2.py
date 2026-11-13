@@ -122,6 +122,8 @@ class Rig:
                     rv = rot(v, P.get(g[1], 0.0) * g[2])
                     px, py = g[0][0] + rv[0], g[0][1] + rv[1]
                 px += look
+            if grp not in ("legR", "legL"):
+                px += P.get("sway", 0.0)
             if grp != "feet_fixed":
                 py += bob
             im2, ox2, oy2 = xform(im, ox, oy, sx, sy, ang, (self.name, key, mir))
@@ -171,7 +173,7 @@ def _cat():
          ("mouth", (0, -30), 6.5, False, 0, "head", {"sc": 0.62})]
     G = {"tail": ((-56, 96), "tail", 1), "legR": ((30, 112), "legR", 1), "legL": ((-30, 112), "legL", -1),
          "armR": ((70, -24), "armR", 1), "armL": ((-70, -24), "armL", -1), "head": ((0, -24), "tilt", 1)}
-    return Rig("cat", cat_v2, 0.80, P, G, 247, (640, 720, 0, 20), -150, leg_len=98)
+    return Rig("cat", cat_v2, 1.08, P, G, 247, (640, 720, 0, 20), -150, leg_len=98)
 
 
 def _mouse():
@@ -188,7 +190,7 @@ def _mouse():
          ("cap", (0, -118), 7, False, 0, "head")]
     G = {"tail": ((36, 70), "tail", 1), "legR": ((16, 82), "legR", 1), "legL": ((-16, 82), "legL", -1),
          "armR": ((46, -14), "armR", 1), "armL": ((-46, -14), "armL", -1), "head": ((0, -20), "tilt", 1)}
-    return Rig("mouse", mouse_v2, 0.38, P, G, 154, (520, 560, 0, 0), -170, leg_len=50)
+    return Rig("mouse", mouse_v2, 0.56, P, G, 154, (520, 560, 0, 0), -170, leg_len=50)
 
 
 def _dog():
@@ -203,7 +205,7 @@ def _dog():
          ("collar", (0, 2), 7, False, 0, "head")]
     G = {"tail": ((92, 130), "tail", 1), "legR": ((84, 96), "legR", 1), "legL": ((-84, 96), "legL", -1),
          "armR": ((42, 24), "armR", 1), "armL": ((-42, 24), "armL", -1), "head": ((0, -6), "tilt", 1)}
-    return Rig("dog", dog_v2, 0.74, P, G, 184, (560, 620, 0, 20), -150)
+    return Rig("dog", dog_v2, 0.98, P, G, 184, (560, 620, 0, 20), -150)
 
 
 def _dadi():
@@ -216,7 +218,7 @@ def _dadi():
          ("mouth", (0, -100), 6.5, False, 0, "head", {"sc": 0.85})]
     G = {"legR": ((26, 244), "legR", 1), "legL": ((-26, 244), "legL", -1),
          "armR": ((68, -46), "armR", 1), "armL": ((-68, -46), "armL", -1), "head": ((0, -76), "tilt", 1)}
-    return Rig("dadi", dadi_v2, 0.78, P, G, 271, (700, 760, 0, 20), -240)
+    return Rig("dadi", dadi_v2, 1.00, P, G, 271, (700, 760, 0, 20), -240)
 
 
 RIGS = {}

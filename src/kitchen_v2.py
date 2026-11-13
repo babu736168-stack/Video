@@ -51,11 +51,14 @@ def bg_v2():
 
 
 # ---------------------------------------------------------------- pose helpers
+OLD_K = {"cat": 0.80, "mouse": 0.38, "dog": 0.74, "dadi": 0.78}
+
+
 def swing(name, t, st):
     d, dy, v, vy = Q.motion_at(name, t)
     G = Q.GAIT[name]
     kind = "tip" if st.get("tiptoe") else ("run" if v > G["thr"] else "walk")
-    S_ = G[kind][0]
+    S_ = G[kind][0] * (R.get(name).k / OLD_K[name])
     ph = 2 * math.pi * d / (2 * S_)
     return ph, clamp(v / 70), kind, v
 
@@ -66,6 +69,23 @@ def blink(f, k, eyes):
 
 def talkamp(txt_flag, t):
     return (0.35 + 0.65 * abs(math.sin(t * 17))) if txt_flag else 0.0
+
+
+def breathe(P, t, idx=0):
+    """Resting breath and a slow weight shift."""
+    b = math.sin(2 * math.pi * t / 3.3 + idx)
+    P["sy"] = P.get("sy", 1.0) * (1 + 0.012 * b)
+    P["bob"] = P.get("bob", 0.0) + 1.3 * b
+    P["lean"] = P.get("lean", 0.0) + 0.9 * math.sin(2 * math.pi * t / 5.1 + idx)
+    P["sway"] = P.get("sway", 0.0) + 1.6 * math.sin(2 * math.pi * t / 5.1 + idx)
+
+
+def gesture(P, t, idx=0):
+    """Hands and head move while the character is speaking."""
+    P["armR"] = 20 + 26 * (0.5 + 0.5 * math.sin(t * 2.9 + idx))
+    P["armL"] = 14 + 20 * (0.5 + 0.5 * math.sin(t * 2.3 + 1.0 + idx))
+    P["tilt_gait"] = P.get("tilt_gait", 0.0) + 4 * math.sin(t * 2.6 + idx)
+    P["bob"] = P.get("bob", 0.0) - 2.5 * abs(math.sin(t * 5.8 + idx))
 
 
 def gait(P, name, ph, amp, kind, v, arm_swing=True, legs=True, arm_amp=45):
@@ -81,6 +101,9 @@ def gait(P, name, ph, amp, kind, v, arm_swing=True, legs=True, arm_amp=45):
         P["armL"] = P.get("armL", 8) + arm_amp * amp * math.sin(ph) * (1.3 if kind == "run" else 1)
     bounce = {"walk": 5, "run": 10, "tip": 3}[kind]
     P["bob"] = P.get("bob", 0) - bounce * amp * abs(math.sin(ph))
+    P["sway"] = P.get("sway", 0.0) + 3.4 * amp * math.sin(ph)
+    P["tilt_gait"] = P.get("tilt_gait", 0.0) - 2.6 * amp * math.sin(ph)
+    P["roll_gait"] = P.get("roll_gait", 0.0) + 2.2 * amp * math.sin(ph)
     return P
 
 
@@ -109,7 +132,9 @@ def cat_pose(C, t, f):
     P = dict(armR=8, armL=8, tilt=0.0, bob=0.0, tail=10 * math.sin(t * 3), look=0.0, props=[])
     eyes = CAT_EYES.get(face, "open")
     if C["mode"] == "sleep":
-        P.update(eyes="sleep", armR=22, armL=22, mouth=0.0, sy=1 + 0.02 * math.sin(t * 2))
+        br = math.sin(2 * math.pi * t / 3.2)
+        P.update(eyes="sleep", armR=-38, armL=-52, legR=-34, legL=34, legR_lift=70, legL_lift=76, tilt=46, tail=62,
+                 mouth=0.2 * max(0.0, -br), sy=1 + 0.03 * br, bob=1.5 * br)
         return P
     ph, amp, kind, v = swing("cat", t, st)
     P["look"] = C.get("facing", 1) * 7
@@ -145,7 +170,7 @@ def cat_pose(C, t, f):
         P.update(armR=40, armL=40)
     if moving and pose not in ("cling", "flail"):
         gait(P, "cat", ph, amp, kind, v, arm_swing=pose in ("idle", "run"), arm_amp=50)
-        P["lean"] = -C["facing"] * ((2 + amp * 5) if kind != "tip" else 6)
+        P["lean"] = -C["facing"] * ((2 + amp * 5) if kind != "tip" else 6) + P.get("roll_gait", 0.0)
     crouch = st.get("crouch", 0)
     if crouch:
         P["bob"] += crouch * 0.5
@@ -169,7 +194,13 @@ def cat_pose(C, t, f):
         mouth = max(mouth, talkamp(True, t))
     P["mouth"] = mouth
     P["eyes"] = blink(f, 0, eyes)
-    P["tilt"] = 5 * math.sin(t * 4) if talk else (-10 if face == "dizzy" else 0)
+    if not moving and not crouch:
+        breathe(P, t, 0)
+    if talk and pose == "idle" and not P["props"]:
+        gesture(P, t, 0)
+    if talk and P["eyes"] == "open" and math.sin(t * 1.7) > 0.55:
+        P["eyes"] = "raised"
+    P["tilt"] = (5 * math.sin(t * 4) if talk else (-10 if face == "dizzy" else 0)) + P.get("tilt_gait", 0.0)
     if st.get("flour"):
         P["tint"] = 0.82
     return P
@@ -211,7 +242,7 @@ def mouse_pose(M, t, f):
     moving = amp > 0.04 and M["mode"] == "stand" and pose != "climb"
     if moving:
         gait(P, "mouse", ph, amp, kind, v, arm_swing=pose in ("idle", "run"), arm_amp=45)
-        P["lean"] = -M["facing"] * (2 + amp * 6)
+        P["lean"] = -M["facing"] * (2 + amp * 6) + P.get("roll_gait", 0.0)
     if st.get("behind"):
         P["armR"] = P["armL"] = 140
     talk = st.get("talk", False)
@@ -220,7 +251,13 @@ def mouse_pose(M, t, f):
         mouth = max(mouth, talkamp(True, t))
     P["mouth"] = mouth
     P["eyes"] = blink(f, 1, MOUSE_EYES.get(face, "open"))
-    P["tilt"] = -6 if face == "sniff" else (5 * math.sin(t * 4) if talk else 0)
+    if not moving and pose in ("idle", "sniff", "laugh", "eat", "give"):
+        breathe(P, t, 1)
+    if talk and pose == "idle":
+        gesture(P, t, 1)
+    if talk and P["eyes"] == "open" and math.sin(t * 1.9) > 0.55:
+        P["eyes"] = "raised"
+    P["tilt"] = (-6 if face == "sniff" else (5 * math.sin(t * 4) if talk else 0)) + P.get("tilt_gait", 0.0)
     if face == "laugh":
         P["tilt"] = 6 * math.sin(t * 14)
     return P
@@ -234,7 +271,9 @@ def dog_pose(D, t, f):
     pose, face = st.get("pose", "sleep"), st.get("face", "calm")
     P = dict(armR=4, armL=4, tilt=0.0, bob=0.0, tail=14 * math.sin(t * (16 if face == "happy" else 5)), look=D.get("facing", 1) * 6, props=[])
     if pose == "sleep":
-        P.update(eyes="sleep", mouth=0.0, sy=1 + 0.025 * math.sin(t * 1.6), tail=3, lean=-D["facing"] * 0 + 88 * (1 if D["facing"] < 0 else -1))
+        br = math.sin(2 * math.pi * t / 3.6)
+        P.update(eyes="sleep", mouth=0.22 * max(0.0, -br), sy=1 + 0.03 * br, bob=1.5 * br, tail=4 + 3 * math.sin(t * 0.7),
+                 lean=88 * (1 if D["facing"] < 0 else -1), tilt=38, armR=34, armL=34, legR=-20, legL=20)
         P["lying"] = True
         return P
     ph, amp, kind, v = swing("dog", t, st)
@@ -248,7 +287,8 @@ def dog_pose(D, t, f):
         P["tilt"] = 6 * math.sin(ph * 1.6)
         P["tail"] = 30 * math.sin(t * 22)
     else:
-        P["sy"] = 1 + 0.012 * math.sin(t * 2)
+        breathe(P, t, 2)
+        P["tilt"] = 3 * math.sin(t * 0.8)
     talk = st.get("talk", False)
     mouth = 1.0 if face in ("angry", "laugh", "happy") else 0.0
     if talk:
@@ -296,7 +336,13 @@ def dadi_pose(G, t, f):
         mouth = max(mouth, talkamp(True, t))
     P["mouth"] = mouth
     P["eyes"] = blink(f, 3, DADI_EYES.get(face, "open"))
-    P["tilt"] = 4 * math.sin(t * 3) if talk else 0
+    if amp <= 0.04 and pose in ("walk", "hips", "wag", "carry"):
+        breathe(P, t, 3)
+    if talk and pose in ("walk", "hips") and amp <= 0.04:
+        gesture(P, t, 3)
+    if talk and P["eyes"] == "open" and math.sin(t * 1.6) > 0.55:
+        P["eyes"] = "raised"
+    P["tilt"] = (4 * math.sin(t * 3) if talk else 0) + P.get("tilt_gait", 0.0)
     return P
 
 
@@ -342,7 +388,7 @@ def draw_props(img, sd, name, P, xw, yw):
             if kind == "pan":
                 K.pan(sd, hand[0], hand[1], ang)
             elif kind == "laddoo":
-                K.laddoo(sd, hand[0] + 8, hand[1] - 6, 12)
+                K.laddoo(sd, hand[0] + 8, hand[1] - 6, 15 if name == "mouse" else 12)
             elif kind == "cheese":
                 sd.poly([(hand[0] - 6, hand[1] + 8), (hand[0] + 24, hand[1] + 8), (hand[0] + 9, hand[1] - 12)], fill=(255, 215, 60), outline=OL, width=2)
             else:
@@ -350,11 +396,11 @@ def draw_props(img, sd, name, P, xw, yw):
         elif kind == "laddoo_up":
             a, _ = hand_world(name, P, "R", xw, yw)
             b, _ = hand_world(name, P, "L", xw, yw)
-            K.laddoo(sd, (a[0] + b[0]) / 2, min(a[1], b[1]) - 10, 17)
+            K.laddoo(sd, (a[0] + b[0]) / 2, min(a[1], b[1]) - 12, 24)
         elif kind == "laddoo_mouth":
             hc = HEADC[name]
             p = to_world(rig, (hc[0] + P.get("look", 0) * 1.5, hc[1] + {"cat": 32, "mouse": 14, "dog": 30}.get(name, 20) + P.get("bob", 0)), xw, yw)
-            K.laddoo(sd, p[0], p[1], 10)
+            K.laddoo(sd, p[0], p[1], 13 if name == "mouse" else 11)
         elif kind == "plate":
             a, _ = hand_world(name, P, "R", xw, yw)
             K.plate(sd, xw, a[1] - 4, arg)
@@ -405,15 +451,15 @@ def render_world(t, f):
             air = clamp(-S.get("yoff", 0) / 300)
             Q.floor_shadow(img, x, ground + 2, w * (1 - 0.5 * air), X, round(1 - 0.7 * air, 1))
     if Mo["mode"] != "hidden" and Mo["y"] in (GROUND, Q.TABLE_TOP):
-        shade_under(Mo, Mo["x"], 70, Mo["y"])
+        shade_under(Mo, Mo["x"], 100, Mo["y"])
     if D["mode"] != "hidden":
-        shade_under(D, D["x"], 240 if D["st"]["pose"] == "sleep" else 200)
+        shade_under(D, D["x"], 330 if D["st"]["pose"] == "sleep" else 260)
     if C["mode"] == "stand":
-        shade_under(C, C["x"], 170)
+        shade_under(C, C["x"], 230)
     elif C["mode"] == "rot":
-        Q.floor_shadow(img, C["center"][0], GROUND + 2, 130, X, 0.5)
+        Q.floor_shadow(img, C["center"][0], GROUND + 2, 180, X, 0.5)
     if G["mode"] != "hidden":
-        shade_under(G, G["x"], 170)
+        shade_under(G, G["x"], 220)
 
     def mouse():
         if Mo["mode"] == "hidden":
@@ -428,27 +474,73 @@ def render_world(t, f):
     if Mo["st"].get("behind"):
         mouse()
     if D["mode"] != "hidden":
-        P = dog_pose(D, t, f)
-        P["tt"] = t
-        xw, yw = D["x"], GROUND
-        if P.get("lying"):
-            yw = GROUND - 62
-        draw_char(img, "dog", P, xw, yw)
-        draw_props(img, sd, "dog", P, xw, yw)
         rg = R.get("dog")
-        HEADS["dog"] = (xw + (-D["facing"] * 0 + (-95 if P.get("lying") and D["facing"] < 0 else 0)), yw + (rg.head_top - rg.ground_y) * rg.k) if not P.get("lying") else (xw - 110, GROUND - 130)
-        if P.get("lying"):
-            Q.zzz(sd, D["x"] - 70, GROUND - 130, t)
-    if C["mode"] == "sleep":
+        if 61.4 <= t < 62.7:
+            # startled awake: leaps up from lying on his side
+            u = ease((t - 61.4) / 1.1)
+            Ds = dict(D, st=dict(D["st"], pose="sleep", face="sleep"), facing=-1)
+            P = dog_pose(Ds, t, f)
+            P.pop("lying", None)
+            P["lean"] = 88 * (1 - u)
+            P["tilt"] = 38 * (1 - u)
+            P["armR"] = lin(34, 4, u) + 45 * math.sin(t * 26) * (1 - u)
+            P["armL"] = lin(34, 4, u) - 45 * math.sin(t * 26) * (1 - u)
+            P["legR"], P["legL"] = 20 * math.sin(t * 28) * (1 - u), -20 * math.sin(t * 28) * (1 - u)
+            P["eyes"] = "wide" if u < 0.55 else "angry"
+            P["mouth"] = lin(0.0, 1.0, u)
+            P["bob"] = -30 * math.sin(math.pi * u)
+            P["sy"] = 1.0
+            P["tt"] = t
+            xw, yw = D["x"], lin(GROUND - 100, GROUND, u)
+            draw_char(img, "dog", P, xw, yw)
+            HEADS["dog"] = (xw - (1 - u) * 235, lin(GROUND - 150, GROUND + (rg.head_top - rg.ground_y) * rg.k, u))
+        else:
+            P = dog_pose(D, t, f)
+            P["tt"] = t
+            xw, yw = D["x"], GROUND
+            if P.get("lying"):
+                yw = GROUND - 100
+            draw_char(img, "dog", P, xw, yw)
+            draw_props(img, sd, "dog", P, xw, yw)
+            HEADS["dog"] = (xw, yw + (rg.head_top - rg.ground_y) * rg.k) if not P.get("lying") else (xw - 235, GROUND - 150)
+            if P.get("lying"):
+                Q.zzz(sd, D["x"] - 250, GROUND - 190, t)
+    rgc = R.get("cat")
+    ln = (rgc.ground_y - rgc.head_top) * rgc.k
+    sx0 = 400 - 0.5 * ln
+    if 19.2 <= t < 20.6 and C["mode"] in ("sleep", "stand"):
+        # waking up: stretch, yawn, roll upright
+        u = ease((t - 19.2) / 1.4)
+        Cs = dict(C, mode="sleep")
+        P = cat_pose(Cs, t, f)
+        P["lean"] = -86 * (1 - u)
+        P["tilt"] = 46 * (1 - u)
+        stretch = math.sin(math.pi * clamp((u - 0.1) / 0.8))
+        P["armR"] = lin(-38, 8, u) + 150 * stretch
+        P["armL"] = lin(-52, 8, u) + 140 * stretch
+        P["legR_lift"], P["legL_lift"] = lin(70, 0, u), lin(76, 0, u)
+        P["legR"], P["legL"] = lin(-34, 0, u), lin(34, 0, u)
+        P["tail"] = lin(62, 10, u)
+        P["mouth"] = 0.95 * math.sin(math.pi * clamp((u - 0.12) / 0.55))
+        P["eyes"] = "sleep" if u < 0.3 else ("sly" if u < 0.75 else "open")
+        P["sy"] = 1.0 + 0.02 * stretch
+        P["bob"] = 0.0
+        xw, yw = lin(sx0, 400, u), lin(GROUND - 92, GROUND, u)
+        draw_char(img, "cat", P, xw, yw)
+        HEADS["cat"] = (xw + (1 - u) * ln * 0.85, lin(GROUND - 170, GROUND + (rgc.head_top - rgc.ground_y) * rgc.k, u))
+        if u < 0.6:
+            Q.zzz(sd, sx0 + ln * 0.95, GROUND - 190, t)
+    elif C["mode"] == "sleep":
         P = cat_pose(C, t, f)
         P["lean"] = -86
-        draw_char(img, "cat", P, 400, GROUND - 64)
-        Q.zzz(sd, 480, 560, t)
-        HEADS["cat"] = (470, 560)
+        draw_char(img, "cat", P, sx0, GROUND - 92)
+        Q.zzz(sd, sx0 + ln * 0.95, GROUND - 190, t)
+        HEADS["cat"] = (sx0 + ln * 0.85, GROUND - 170)
     elif C["mode"] == "stand":
         P = cat_pose(C, t, f)
         P["tt"] = t
-        yw = GROUND + C["yoff"]
+        yoff = C["yoff"] * (0.62 if C["yoff"] < -200 else 1.0)
+        yw = GROUND + yoff
         draw_char(img, "cat", P, C["x"], yw, tint=P.get("tint", 0.0))
         draw_props(img, sd, "cat", P, C["x"], yw)
         rg = R.get("cat")
@@ -595,6 +687,181 @@ SEGS = None
 NFR = 0
 
 
+# ---------------------------------------------------------------- cinematography
+class Fx:
+    """Camera x that follows a character."""
+    def __init__(self, name, off=0.0):
+        self.name, self.off = name, off
+
+
+class Fy:
+    def __init__(self, name, off=0.0):
+        self.name, self.off = name, off
+
+
+def _pos(name, t):
+    if name == "cat":
+        C = Q.cat_state(t, 0)
+        if C["mode"] == "sleep":
+            return (400, GROUND - 100)
+        if C["mode"] == "rot":
+            return tuple(C["center"])
+        return (C["x"], GROUND + C["yoff"] * 0.62 - 190)
+    if name == "mouse":
+        M = Q.mouse_state(t, 0)
+        if M["mode"] == "hidden":
+            return (110, Q.WALL - 40)
+        return (M["x"], M["y"] + M["yoff"] - 60)
+    if name == "dog":
+        D = Q.dog_state(t, 0)
+        return (D["x"] if D["mode"] != "hidden" else 560, GROUND - 150)
+    G = Q.dadi_state(t, 0)
+    return (G["x"] if G["mode"] != "hidden" else 1000, GROUND - 240)
+
+
+def _follow(name, axis, t, off):
+    n = 7
+    ts = [max(0.0, t - 0.55 * i / (n - 1)) for i in range(n)]
+    vals = [_pos(name, tt)[0 if axis == "x" else 1] for tt in ts]
+    w = [1.0 + 0.4 * i for i in range(n)][::-1]
+    return sum(v * wi for v, wi in zip(vals, w)) / sum(w) + off
+
+
+def _ev(v, t, axis):
+    if isinstance(v, Fx):
+        return _follow(v.name, "x", t, v.off)
+    if isinstance(v, Fy):
+        return _follow(v.name, "y", t, v.off)
+    return v
+
+
+# (story time, centre x, centre y, zoom, dutch roll in degrees, 'cut' | 'ease')
+CAM_KEYS = [
+    (0.0, 640, 360, 1.00, 0, "cut"), (4.3, 700, 390, 1.10, 0, "ease"),                          # establishing push-in
+    (4.4, Fx("dadi", -10), 400, 1.40, 0, "cut"), (7.4, Fx("dadi", -10), 395, 1.52, 0, "ease"),   # Dadi speaks
+    (7.5, 430, 560, 1.65, -2.5, "cut"), (9.1, 430, 556, 1.52, -2.5, "ease"),                     # sleeping cat, low angle
+    (9.2, 640, 370, 1.02, 0, "cut"), (11.7, 660, 372, 1.08, 0, "ease"),
+    (11.9, 235, 520, 1.70, 0, "cut"), (13.2, 235, 520, 1.70, 0, "ease"),                         # mouse peeks out
+    (13.3, Fx("mouse", 90), 520, 1.35, 0, "cut"), (15.5, Fx("mouse", 90), 520, 1.35, 0, "ease"),  # tracks him across the floor
+    (15.6, Fx("mouse", 60), Fy("mouse", -30), 1.55, 0, "cut"), (19.1, Fx("mouse", 0), Fy("mouse", -40), 1.55, 0, "ease"),
+    (19.2, 440, 470, 1.18, 0, "cut"), (20.5, Fx("cat", 20), 430, 1.38, 2, "ease"),               # the cat wakes
+    (21.0, Fx("cat", 30), 430, 1.35, 1.5, "cut"), (22.9, Fx("cat", 30), 430, 1.35, 1.5, "ease"),
+    (23.2, Fx("cat", 90), 450, 1.15, -1.5, "cut"),                                              # the chase
+    (26.4, Fx("mouse", 40), 520, 1.50, 0, "cut"),
+    (28.6, 640, 400, 1.05, 0, "cut"),
+    (30.0, Fx("cat", 60), 450, 1.20, 2.0, "cut"),
+    (33.3, 700, 430, 1.05, 0, "cut"),
+    (35.5, Fx("mouse", -60), 520, 1.35, 0, "cut"),
+    (38.6, Fx("cat", -20), 440, 1.20, 0, "cut"),                                                # the trap plan
+    (41.0, 230, 560, 1.50, 0, "cut"), (44.0, 230, 560, 1.50, 0, "ease"),
+    (44.1, 200, 590, 1.70, 0, "cut"), (47.5, 215, 585, 1.62, 0, "ease"),
+    (47.6, 240, 560, 1.45, 0, "cut"),
+    (48.2, Fx("mouse", 130), 540, 1.20, 0, "cut"),
+    (51.0, Fx("cat", 0), 470, 1.50, 0, "cut"),
+    (52.3, 640, 300, 1.12, -3, "cut"), (55.3, 640, 300, 1.12, -3, "ease"),                       # up at the ceiling fan
+    (55.4, 820, 420, 1.10, 0, "cut"),
+    (56.8, 700, 400, 1.06, 0, "cut"),                                                           # never wake a sleeping dog
+    (60.6, 1040, 520, 1.25, 0, "cut"), (62.4, 1060, 470, 1.70, 3, "ease"),
+    (62.7, 1000, 500, 1.30, 3, "cut"),
+    (63.4, Fx("cat", 0), 470, 1.50, -2, "cut"),
+    (65.5, 640, 400, 1.05, 0, "cut"),
+    (65.7, Fx("cat", 150), 440, 1.10, 2, "cut"),                                                # kitchen chaos
+    (67.6, Fx("cat", 100), 440, 1.10, -2, "cut"),
+    (69.4, 680, 520, 1.30, 0, "cut"),
+    (72.0, Fx("cat", 20), 440, 1.20, 0, "cut"),
+    (74.0, Fx("cat", 0), 470, 1.50, -2.5, "cut"),
+    (77.0, 640, 400, 1.05, 0, "cut"),
+    (78.6, Fx("cat", 0), 470, 1.45, 0, "cut"),                                                  # Dadi returns
+    (81.9, Fx("dadi", -60), 430, 1.40, 3, "cut"),
+    (83.6, Fx("cat", 0), 470, 1.50, -2, "cut"),
+    (85.6, Fx("cat", 0), 450, 1.05, 0, "cut"),
+    (90.1, 640, 400, 1.00, 0, "cut"),                                                           # friends share laddoos
+    (91.8, 520, 540, 1.40, 0, "cut"), (94.0, 500, 500, 1.30, 0, "ease"), (100.0, 500, 470, 1.12, 0, "ease"),
+]
+SHAKES = [(25.2, 8), (32.6, 12), (46.0, 6), (51.3, 10), (52.6, 8), (56.5, 14), (61.4, 12), (69.8, 8), (70.5, 9),
+          (71.2, 10), (73.0, 13), (73.5, 8), (74.3, 12), (86.2, 9), (87.0, 9), (90.5, 10)]
+
+
+def camera(t):
+    keys = CAM_KEYS
+    i = max(k for k in range(len(keys)) if keys[k][0] <= t)
+    k0 = keys[i]
+    nxt = keys[i + 1] if i + 1 < len(keys) else None
+
+    def val(k):
+        return (_ev(k[1], t, "x"), _ev(k[2], t, "y"), k[3], k[4])
+    a = val(k0)
+    if nxt is None or nxt[5] == "cut":
+        cx, cy, z, roll = a
+    else:
+        u = ease((t - k0[0]) / max(1e-6, nxt[0] - k0[0]))
+        b = val(nxt)
+        cx, cy, z, roll = [lin(a[j], b[j], u) for j in range(4)]
+    # impact shake and a light handheld drift
+    amp = sum(A * math.exp(-(t - T) / 0.16) for T, A in SHAKES if T <= t < T + 0.9)
+    sx = amp * math.sin(t * 71) + 1.4 * math.sin(t * 0.9) + 0.7 * math.sin(t * 2.3)
+    sy = amp * 0.8 * math.cos(t * 57) + 1.1 * math.sin(t * 0.7 + 1)
+    roll += 0.12 * math.sin(t * 1.3) + (amp * 0.05) * math.sin(t * 43)
+    return cx, cy, z, roll, sx, sy
+
+
+_VIG = None
+
+
+def vignette(img):
+    global _VIG
+    if _VIG is None:
+        yy, xx = np.mgrid[0:H, 0:W]
+        d = np.sqrt(((xx - W / 2) / (W * 0.62)) ** 2 + ((yy - H / 2) / (H * 0.7)) ** 2)
+        _VIG = Image.fromarray(np.clip((d - 0.62) * 120, 0, 90).astype(np.uint8), "L")
+    img.paste(Image.new("RGB", (W, H), (14, 8, 6)), (0, 0), _VIG)
+
+
+def render_story(t, f):
+    world, C, Mo, D, G = render_world(t, f)
+    cx, cy, z, roll, sx, sy = camera(t)
+    infl = 1 + 0.022 * abs(roll) + 0.012
+    vw, vh = W / z * infl, H / z * infl
+    cx = clamp(cx, vw / 2, W - vw / 2) + sx
+    cy = clamp(cy, vh / 2, H - vh / 2) + sy
+    s = X / z
+    th = math.radians(roll)
+    c, sn = math.cos(th), math.sin(th)
+    coeffs = (s * c, -s * sn, cx * X - s * (c * 640 - sn * 360), s * sn, s * c, cy * X - s * (sn * 640 + c * 360))
+    img = world.transform((W, H), Image.AFFINE, coeffs, resample=Image.BICUBIC)
+
+    def to_screen(p):
+        rx, ry = (p[0] - cx) * z, (p[1] - cy) * z
+        return (640 + c * rx + sn * ry, 360 - sn * rx + c * ry)
+    d = ImageDraw.Draw(img)
+    for t0, word, p, color, *rest in Q.WORDS:
+        if t0 <= t < t0 + (rest[0] if rest else 1.0):
+            u = seg(t, t0, t0 + 0.15)
+            size = int(lin(30, 84, u) + 6 * math.sin(t * 30) * (1 - seg(t, t0, t0 + 0.6)))
+            fnt = font("Inter-Black.otf", size)
+            half = fnt.getlength(word) / 2 + 12
+            x, y = to_screen(p)
+            d.text((clamp(x, half, W - half), clamp(y, 70, H - 120)), word, font=fnt, fill=color, anchor="mm", stroke_width=7, stroke_fill=OL)
+    for s_, e, who, kind, txt in Q.BUBBLES:
+        if s_ <= t < e:
+            hx, hy = to_screen(anchor(who, C, Mo, D, G))
+            Q.R.bubble(img, who, kind, txt, clamp(hx, 60, W - 60), clamp(hy, 120, H - 40))
+    for t0, cap in Q.CAPTIONS:
+        if t0 <= t < t0 + 3.2:
+            a = min(seg(t, t0, t0 + 0.3), 1 - seg(t, t0 + 2.8, t0 + 3.2))
+            fnt = font("Inter-Black.otf", 26)
+            w = fnt.getlength(cap) + 44
+            y = H - 58 + (1 - a) * 70
+            d.rounded_rectangle((W / 2 - w / 2, y, W / 2 + w / 2, y + 44), 22, fill=(40, 20, 10), outline=(255, 190, 40), width=3)
+            d.text((W / 2, y + 22), cap, font=fnt, fill=(255, 215, 90), anchor="mm")
+    vignette(img)
+    if t > 96.3:
+        a = seg(t, 96.3, 96.9)
+        ImageDraw.Draw(img).text((W / 2, 110 - (1 - a) * 80), "THE END", font=font("Inter-Black.otf", 110), fill=(255, 215, 60),
+                                 anchor="mm", stroke_width=8, stroke_fill=OL)
+    return img
+
+
 def _frame(fr):
     t = fr / Q.FPS
     si = 0
@@ -614,6 +881,7 @@ def main():
     import subprocess
     from multiprocessing import Pool
     out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "output", "great_laddoo_heist_v2.mp4")
+    Q.render_story = render_story
     Q.render_world = render_world
     Q.anchor = anchor
     Q.make_card = make_card

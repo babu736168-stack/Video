@@ -11,6 +11,11 @@ Video: `output/great_laddoo_heist_v2.mp4` (1280×720, 24 fps, about 2 min 7 s, w
 - **Lit kitchen.** Sunlight streams in through the window, with a soft vignette, a darker floor and contact shadows under every character.
 - **Props that follow the hands.** The frying pan, plate of laddoos, fork, cheese, broom, mousetrap and pot all move with the character's arm or head.
 
+## Acting and camera (latest update)
+- **Bigger characters.** All four are about 35% larger in frame, with stride, shadows and props scaled to match.
+- **Lifelike acting.** Everyone breathes and shifts weight while resting. The cat and dog sleep curled up with tucked paws, a tilted head and slow breathing and snoring. The cat stretches, yawns and rolls upright when he wakes, and the dog leaps up startled when the pan hits him. Walking now includes hip sway, a body roll and a counter-tilting head. While someone speaks, their hands and head move and their eyebrows rise.
+- **Cinematic camera.** A shot list with hard cuts between angles, slow push-ins, tracking shots that follow the characters, close-ups on reactions, tilted dutch angles on dramatic moments, camera shake on every impact, a light handheld drift and a soft vignette.
+
 ## Code
 | File | What it does |
 |---|---|

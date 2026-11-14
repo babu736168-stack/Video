@@ -188,11 +188,27 @@ def tail(cv):
     return []
 
 
+def front_up(cv):
+    path = [(0, 0), (0, 29), (0, 58)]
+    m, poly = cv.limb(path, [40, 36, 33], brown(8, 20, 80))
+    cv.outline(poly, 1.8)
+    return []
+
+
+def front_lo(cv):
+    path = [(0, 0), (0, 29), (0, 58)]
+    m, poly = cv.limb(path, [33, 31, 30], brown(8, 20, 80))
+    cv.clip(m, lambda t: t.stroke([(0, 34), (0, 50), (0, 70)], 40, 40, CREAM_L, alpha=0.95))
+    cv.outline(poly, 1.8)
+    return []
+
+
 SPEC = {
     "head": (head, 220, 200, 0, 0), "ear": (ear, 110, 160, 0, 0), "eyes": (eyes, 230, 120, 0, -6),
     "snout": (snout, 220, 160, 0, 14), "mouth": (mouth, 150, 130, 0, 10), "collar": (collar, 230, 90, 0, 14),
     "body": (body, 250, 260, 0, 0), "front_leg": (front_leg, 100, 190, 0, 66), "paw": (paw, 100, 100, 0, 0),
     "hind_leg": (hind_leg, 120, 170, 0, 20), "tail": (tail, 140, 160, 20, -40), "snout_asm": (snout_asm, 220, 160, 0, 14),
+    "front_up": (front_up, 80, 100, 0, 28), "front_lo": (front_lo, 80, 100, 0, 28),
 }
 
 ASSEMBLY = [

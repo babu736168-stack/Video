@@ -251,6 +251,30 @@ def tail(cv):
     return [(-48, -126, "tail tip", 36, -14)]
 
 
+def _seg(cv, widths, L, fill, band_start=0.3):
+    path = [(0, 0), (0, L / 2), (0, L)]
+    m, poly = cv.limb(path, widths, fill)
+    bands(cv, path, m, STRIPE, every=17, length=46, w=4.6, start=band_start, end=0.95)
+    cv.outline(poly, 1.7)
+    return []
+
+
+def arm_up(cv):
+    return _seg(cv, [28, 26, 23], 46, orange(10, 20, 90), 0.4)
+
+
+def arm_lo(cv):
+    return _seg(cv, [23, 21, 18], 46, orange(10, 20, 90), 0.25)
+
+
+def leg_up(cv):
+    return _seg(cv, [36, 33, 29], 50, orange(14, 30, 100), 0.4)
+
+
+def leg_lo(cv):
+    return _seg(cv, [29, 25, 21], 50, orange(14, 30, 100), 0.25)
+
+
 def muzzle_asm(cv):
     return muzzle(cv, backing=False)
 
@@ -261,6 +285,7 @@ SPEC = {
     "muzzle": (muzzle, 210, 140, 0, 0), "mouth": (mouth, 130, 110, 0, 10), "torso": (torso, 200, 230, 0, 0),
     "arm": (arm, 100, 120, 0, 46), "glove": (glove, 100, 90, 0, 24), "leg": (leg, 100, 130, 0, 50),
     "foot": (foot, 150, 70, 20, 14), "tail": (tail, 220, 190, -50, -60), "muzzle_asm": (muzzle_asm, 210, 140, 0, 0),
+    "arm_up": (arm_up, 70, 90, 0, 22), "arm_lo": (arm_lo, 70, 90, 0, 22), "leg_up": (leg_up, 80, 90, 0, 24), "leg_lo": (leg_lo, 80, 90, 0, 24),
 }
 
 # assembled character: (part, x, y, z, mirror, rotation)

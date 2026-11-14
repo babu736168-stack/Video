@@ -23,6 +23,60 @@ X = K.SS
 GROUND = K.GROUND
 HEADS = {}
 
+Q.STORY = 108.0          # a longer ending: the family shares the laddoos
+END_T = 96.0
+
+
+def cat_state(t, f):
+    if t < END_T:
+        return Q.cat_state(t, f)
+    st = dict(pose="idle", face="smirk")
+    S = dict(mode="stand", x=-300, yoff=0, facing=1, angle=0, center=None, st=st)
+    if t < 99.0:
+        S["mode"] = "hidden"
+    elif t < 102.2:   # trudges in from the left with his head hung
+        S["x"] = lin(-250, 690, clamp((t - 99.0) / 3.2))
+        st.update(face="nervous", pose="idle")
+    elif t < 103.8:   # reaches for the laddoo Dadi offers
+        S.update(x=690, facing=1)
+        st.update(face="shock" if t < 102.8 else "grin", pose="take")
+    else:             # eats it, delighted
+        S.update(x=690, facing=1)
+        st.update(face="laddoo", pose="eat")
+    st["talk"] = Q.talking("cat", t, f)
+    return S
+
+
+def dadi_state(t, f):
+    if t < END_T:
+        return Q.dadi_state(t, f)
+    st = dict(pose="walk", face="smile")
+    S = dict(mode="stand", x=1320, facing=-1, st=st)
+    if t < 96.5:
+        S["mode"] = "hidden"
+    elif t < 99.2:
+        S["x"] = lin(1320, 930, clamp((t - 96.5) / 2.7))
+        st.update(pose="carry", laddoos=6)
+    elif t < 102.6:
+        S["x"] = 930
+        st.update(pose="carry", laddoos=6)
+    elif t < 104.2:
+        S["x"] = 930
+        st.update(pose="give", laddoos=5)
+    else:
+        S["x"] = 930
+        st.update(pose="hips")
+    st["talk"] = Q.talking("dadi", t, f)
+    return S
+
+
+Q.STATE_FN.update(cat=cat_state, dadi=dadi_state)
+for _b in ((99.4, 101.8, "dadi", "speech", "Come, everyone! Laddoos for all!"),
+           (102.3, 104.0, "cat", "speech", "Sorry, Dadi! I was greedy..."),
+           (104.2, 105.9, "dadi", "speech", "Shared laddoos taste sweeter!")):
+    if _b not in Q.BUBBLES:
+        Q.BUBBLES.append(_b)
+
 
 # ---------------------------------------------------------------- background with lighting
 _BG = None
@@ -82,15 +136,17 @@ def breathe(P, t, idx=0):
 
 def gesture(P, t, idx=0):
     """Hands and head move while the character is speaking."""
-    P["armR"] = 20 + 26 * (0.5 + 0.5 * math.sin(t * 2.9 + idx))
-    P["armL"] = 14 + 20 * (0.5 + 0.5 * math.sin(t * 2.3 + 1.0 + idx))
+    P["armR"] = 24 + 34 * (0.5 + 0.5 * math.sin(t * 2.9 + idx))
+    P["armL"] = 16 + 26 * (0.5 + 0.5 * math.sin(t * 2.3 + 1.0 + idx))
+    P["armR_r"] = 0.66 + 0.1 * math.sin(t * 2.9 + idx)
+    P["armL_r"] = 0.7
     P["tilt_gait"] = P.get("tilt_gait", 0.0) + 4 * math.sin(t * 2.6 + idx)
     P["bob"] = P.get("bob", 0.0) - 2.5 * abs(math.sin(t * 5.8 + idx))
 
 
 def gait(P, name, ph, amp, kind, v, arm_swing=True, legs=True, arm_amp=45):
     A_leg = {"walk": 13, "run": 24, "tip": 8}[kind]
-    L_lift = {"walk": 9, "run": 18, "tip": 14}[kind]
+    L_lift = {"walk": 16, "run": 30, "tip": 24}[kind] * {"cat": 1.0, "mouse": 0.5, "dog": 0.0, "dadi": 0.34}[name]
     if legs and amp > 0.04:
         P["legR"] = A_leg * amp * math.sin(ph)
         P["legL"] = -A_leg * amp * math.sin(ph)
@@ -108,13 +164,9 @@ def gait(P, name, ph, amp, kind, v, arm_swing=True, legs=True, arm_amp=45):
 
 
 def hand_off(rig, P, side, rest):
-    """Offset (units, relative to the ground point) of a hand after the arm pose."""
-    pivot, param, sign = rig.groups["armR" if side == "R" else "armL"]
-    s = 1 if side == "R" else -1
-    rest = (rest[0] * s, rest[1])
-    v = (rest[0] - pivot[0], rest[1] - pivot[1])
-    rv = R.rot(v, P.get(param, 0.0) * sign)
-    return (pivot[0] + rv[0], pivot[1] + rv[1] + P.get("bob", 0.0)), pivot
+    """Hand position (character space) after the arm IK, and the shoulder."""
+    root, elbow, end = rig.end_pos(P, "arm" + side)
+    return (end[0], end[1] + 14), root
 
 
 def to_world(rig, off, xw, yw):
@@ -141,7 +193,7 @@ def cat_pose(C, t, f):
     moving = amp > 0.04 and C["mode"] == "stand" and abs(C.get("yoff", 0)) < 8
     if pose == "rub":
         j = 6 * math.sin(t * 30)
-        P.update(armR=-30 + j, armL=-30 - j)
+        P.update(armR=-26 + j, armL=-26 - j, armR_r=0.62, armL_r=0.62)
     elif pose == "reach":
         P.update(armR=98, armL=18)
     elif pose == "pan_up":
@@ -166,6 +218,10 @@ def cat_pose(C, t, f):
         P.update(armR=60 + 25 * math.sin(t * 40), armL=60 - 25 * math.sin(t * 40))
     elif pose == "point":
         P.update(armR=118, armL=10)
+    elif pose == "take":
+        P.update(armR=86, armR_r=0.97, armL=14)
+    elif pose == "eat":
+        P.update(armR=140, armL=140, armR_r=0.5, armL_r=0.5)
     elif pose == "peek":
         P.update(armR=40, armL=40)
     if moving and pose not in ("cling", "flail"):
@@ -178,6 +234,15 @@ def cat_pose(C, t, f):
         P["legR"], P["legL"] = P.get("legR", 0) + 8, P.get("legL", 0) - 8
     if st.get("tail_floor"):
         P["tail"] = -50
+    if st.get("tiptoe") and math.sin(t * 1.3) > 0.45:
+        P["look"] = -P["look"]                      # nervous glance over the shoulder
+        P["tilt"] = -6
+    if face == "dizzy" and pose == "idle" and C["mode"] == "stand":
+        P["sway"] = P.get("sway", 0.0) + 10 * math.sin(t * 2.1)        # staggering about
+        P["legR"], P["legL"] = 12 * math.sin(t * 4.2), -12 * math.sin(t * 4.2)
+        P["legR_lift"], P["legL_lift"] = 14 * max(0, math.sin(t * 4.2)), 14 * max(0, -math.sin(t * 4.2))
+        P["roll_gait"] = P.get("roll_gait", 0.0) + 7 * math.sin(t * 2.1)
+        P["armR"], P["armL"] = 40 + 30 * math.sin(t * 3.3), 40 - 30 * math.sin(t * 3.3)
     if st.get("trap"):
         P["props"].append(("trap_tail", None))
     if st.get("pot"):
@@ -214,9 +279,13 @@ def mouse_pose(M, t, f):
     pose, face = st.get("pose", "idle"), st.get("face", "smile")
     P = dict(armR=10, armL=10, tilt=0.0, bob=0.0, tail=12 * math.sin(t * 5), look=M.get("facing", 1) * 6, props=[])
     ph, amp, kind, v = swing("mouse", t, st)
+    if pose == "sniff":                                   # washing his face at the hole
+        P.update(armR=128 + 16 * math.sin(t * 18), armL=128 - 16 * math.sin(t * 18), armR_r=0.55, armL_r=0.55)
     if pose in ("carry", "carry_run"):
         P.update(armR=168, armL=168)
         P["props"].append(("laddoo_up", None))
+        if math.sin(t * 1.6) > 0.5:
+            P["look"] = -P["look"]
     elif pose == "climb":
         d, dy, vv, vy = Q.motion_at("mouse", t)
         a = dy / 18 * math.pi
@@ -272,8 +341,11 @@ def dog_pose(D, t, f):
     P = dict(armR=4, armL=4, tilt=0.0, bob=0.0, tail=14 * math.sin(t * (16 if face == "happy" else 5)), look=D.get("facing", 1) * 6, props=[])
     if pose == "sleep":
         br = math.sin(2 * math.pi * t / 3.6)
-        P.update(eyes="sleep", mouth=0.22 * max(0.0, -br), sy=1 + 0.03 * br, bob=1.5 * br, tail=4 + 3 * math.sin(t * 0.7),
-                 lean=88 * (1 if D["facing"] < 0 else -1), tilt=38, armR=34, armL=34, legR=-20, legL=20)
+        dream = max(0.0, math.sin(t * 0.8 - 0.4) - 0.7) / 0.3          # now and then he dreams of chasing something
+        P.update(eyes="sleep", mouth=0.22 * max(0.0, -br) + 0.5 * dream * abs(math.sin(t * 13)), sy=1 + 0.03 * br,
+                 bob=1.5 * br, tail=4 + 3 * math.sin(t * 0.7) + 22 * dream * math.sin(t * 15),
+                 lean=88 * (1 if D["facing"] < 0 else -1), tilt=38, armR=34 + 18 * dream * math.sin(t * 17),
+                 armL=34 - 18 * dream * math.sin(t * 17), legR=-20, legL=20)
         P["lying"] = True
         return P
     ph, amp, kind, v = swing("dog", t, st)
@@ -329,7 +401,10 @@ def dadi_pose(G, t, f):
     elif pose == "shock":
         P.update(armR=148, armL=148)
     elif pose == "hips":
-        P.update(armR=30, armL=30)
+        P.update(armR=44, armL=44, armR_r=0.6, armL_r=0.6)
+    elif pose == "give":
+        P.update(armL=84, armL_r=0.97, armR=46, armR_r=0.62)
+        P["props"].append(("laddoo", "L"))
     talk = st.get("talk", False)
     mouth = 0.8 if face == "shock" else (0.45 if face == "angry" and pose in ("wag", "broom_up") else 0.0)
     if talk:
@@ -376,7 +451,7 @@ def draw_char(img, name, P, xw, yw, tint=0.0, center_rot=None):
 def hand_world(name, P, side, xw, yw):
     rig = R.get(name)
     off, piv = hand_off(rig, P, side, WRIST[name])
-    return to_world(rig, off, xw, yw), to_world(rig, (piv[0], piv[1] + P.get("bob", 0)), xw, yw)
+    return to_world(rig, off, xw, yw), to_world(rig, piv, xw, yw)
 
 
 def draw_props(img, sd, name, P, xw, yw):
@@ -440,7 +515,7 @@ def render_world(t, f):
     sd = SD(d, X)
     K.fan(sd, t, 8)
     K.rug(sd, 400, GROUND)
-    C, Mo, D, G = Q.cat_state(t, f), Q.mouse_state(t, f), Q.dog_state(t, f), Q.dadi_state(t, f)
+    C, Mo, D, G = cat_state(t, f), Q.mouse_state(t, f), Q.dog_state(t, f), dadi_state(t, f)
     sack_front = Q.inside(t, [(24.3, 26.6), (42.4, 51.2)])
     if not sack_front:
         K.flour_sack(sd, t >= 25.2)
@@ -701,7 +776,9 @@ class Fy:
 
 def _pos(name, t):
     if name == "cat":
-        C = Q.cat_state(t, 0)
+        C = cat_state(t, 0)
+        if C["mode"] == "hidden":
+            return (-100, GROUND - 190)
         if C["mode"] == "sleep":
             return (400, GROUND - 100)
         if C["mode"] == "rot":
@@ -715,7 +792,7 @@ def _pos(name, t):
     if name == "dog":
         D = Q.dog_state(t, 0)
         return (D["x"] if D["mode"] != "hidden" else 560, GROUND - 150)
-    G = Q.dadi_state(t, 0)
+    G = dadi_state(t, 0)
     return (G["x"] if G["mode"] != "hidden" else 1000, GROUND - 240)
 
 
@@ -776,7 +853,11 @@ CAM_KEYS = [
     (83.6, Fx("cat", 0), 470, 1.50, -2, "cut"),
     (85.6, Fx("cat", 0), 450, 1.05, 0, "cut"),
     (90.1, 640, 400, 1.00, 0, "cut"),                                                           # friends share laddoos
-    (91.8, 520, 540, 1.40, 0, "cut"), (94.0, 500, 500, 1.30, 0, "ease"), (100.0, 500, 470, 1.12, 0, "ease"),
+    (91.8, 520, 540, 1.40, 0, "cut"), (95.9, 540, 500, 1.28, 0, "ease"),
+    (96.0, Fx("dadi", -160), 430, 1.08, 0, "cut"),                                              # Dadi returns with the plate
+    (99.3, 780, 440, 1.30, 0, "cut"),
+    (102.0, 780, 450, 1.38, 0, "cut"),                                                          # the cat is forgiven
+    (104.0, 700, 430, 1.10, 0, "cut"), (108.0, 640, 400, 1.00, 0, "ease"),
 ]
 SHAKES = [(25.2, 8), (32.6, 12), (46.0, 6), (51.3, 10), (52.6, 8), (56.5, 14), (61.4, 12), (69.8, 8), (70.5, 9),
           (71.2, 10), (73.0, 13), (73.5, 8), (74.3, 12), (86.2, 9), (87.0, 9), (90.5, 10)]
@@ -855,8 +936,8 @@ def render_story(t, f):
             d.rounded_rectangle((W / 2 - w / 2, y, W / 2 + w / 2, y + 44), 22, fill=(40, 20, 10), outline=(255, 190, 40), width=3)
             d.text((W / 2, y + 22), cap, font=fnt, fill=(255, 215, 90), anchor="mm")
     vignette(img)
-    if t > 96.3:
-        a = seg(t, 96.3, 96.9)
+    if t > 105.8:
+        a = seg(t, 105.8, 106.4)
         ImageDraw.Draw(img).text((W / 2, 110 - (1 - a) * 80), "THE END", font=font("Inter-Black.otf", 110), fill=(255, 215, 60),
                                  anchor="mm", stroke_width=8, stroke_fill=OL)
     return img
@@ -888,6 +969,11 @@ def main():
     Q.render_title = render_title
     Q.render_end = render_end
     out = os.path.abspath(out)
+    _orig = Q.KTrack.sfx
+
+    def _sfx(self, t, name):
+        _orig(self, t + 9.5 if name == "tada" else t, name)     # fanfare at THE END (moved from 96.3 s to 105.8 s)
+    Q.KTrack.sfx = _sfx
     SEGS, total = Q.timeline()
     wav = out + ".wav"
     Q.build_audio(wav, SEGS[-2][0], total)

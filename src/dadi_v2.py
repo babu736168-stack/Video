@@ -206,10 +206,24 @@ def mouth(cv):
     return []
 
 
+def arm_up(cv):
+    path = [(0, 0), (0, 25), (0, 50)]
+    cv.limb(path, [24, 22, 19], skin(0, 25, 70), 1.7)
+    sleeve = limb_poly([(0, -4), (0, 26)], [34, 31])
+    solid(cv, sleeve, Radial((0, 6), 40, [(0, MAR_L), (1, MAR_D)]), None, 1.7, (0.35, 4, 3), (0.4, 2.5, 2))
+    return []
+
+
+def arm_lo(cv):
+    cv.limb([(0, 0), (0, 25), (0, 50)], [19, 17, 15], skin(0, 25, 70), 1.7)
+    return []
+
+
 SPEC = {
     "head": (head, 190, 230, 0, -16), "eyes": (eyes, 170, 80, 0, 0), "face": (face, 160, 160, 0, 0),
     "saree": (saree, 230, 300, 0, 26), "pallu": (pallu, 150, 250, 8, 4), "arm": (arm, 70, 130, 0, 50),
-    "hand": (hand, 70, 90, 0, 26), "feet": (feet, 110, 60, 0, 12), "foot_one": (foot_one, 60, 50, 0, 12), "mouth": (mouth, 70, 50, 0, 8), "broom": (broom, 120, 300, 0, 14),
+    "hand": (hand, 70, 90, 0, 26), "feet": (feet, 110, 60, 0, 12), "foot_one": (foot_one, 60, 50, 0, 12), "mouth": (mouth, 70, 50, 0, 8),
+    "arm_up": (arm_up, 60, 90, 0, 22), "arm_lo": (arm_lo, 60, 90, 0, 22), "broom": (broom, 120, 300, 0, 14),
 }
 
 ASSEMBLY = [

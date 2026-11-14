@@ -16,6 +16,11 @@ Video: `output/great_laddoo_heist_v2.mp4` (1280×720, 24 fps, about 2 min 7 s, w
 - **Lifelike acting.** Everyone breathes and shifts weight while resting. The cat and dog sleep curled up with tucked paws, a tilted head and slow breathing and snoring. The cat stretches, yawns and rolls upright when he wakes, and the dog leaps up startled when the pan hits him. Walking now includes hip sway, a body roll and a counter-tilting head. While someone speaks, their hands and head move and their eyebrows rise.
 - **Cinematic camera.** A shot list with hard cuts between angles, slow push-ins, tracking shots that follow the characters, close-ups on reactions, tilted dutch angles on dramatic moments, camera shake on every impact, a light handheld drift and a soft vignette.
 
+## Movement and activities (latest update)
+- **Real elbows and knees.** Every arm and leg is now two bones solved with inverse kinematics. Elbows bend when a character reaches, gestures or puts hands on hips. Knees flex on each step, and a lifted foot bends the knee. Feet stay planted on the floor while the body bobs and sways.
+- **More to do.** The dog twitches and woofs in his sleep as he dreams. The mouse washes his face at the hole, and glances back over his shoulder when carrying a laddoo. The cat looks nervously over his shoulder while sneaking, and staggers around dizzy after bumping his head.
+- **New ending.** After the broom chase, Dadi returns with the plate of laddoos. The cat trudges in with his head hung, apologises, and is forgiven with a laddoo, which he eats happily. The story is now about eight seconds longer, and the closing fanfare moves to the new "THE END".
+
 ## Code
 | File | What it does |
 |---|---|

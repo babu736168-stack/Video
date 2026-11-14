@@ -192,12 +192,34 @@ def tail(cv):
     return []
 
 
+def _mseg(cv, widths, L):
+    cv.limb([(0, 0), (0, L / 2), (0, L)], widths, grey(0, L / 2, 50), 1.5)
+    return []
+
+
+def arm_up(cv):
+    return _mseg(cv, [13, 12, 11], 26)
+
+
+def arm_lo(cv):
+    return _mseg(cv, [11, 10, 9], 26)
+
+
+def leg_up(cv):
+    return _mseg(cv, [17, 15, 14], 25)
+
+
+def leg_lo(cv):
+    return _mseg(cv, [14, 13, 12], 25)
+
+
 SPEC = {
     "head": (head, 180, 160, 0, 0), "ear": (ear, 90, 90, 0, 0), "cap": (cap, 150, 100, 0, 0),
     "eyes": (eyes, 170, 100, 0, -6), "snout": (snout, 190, 120, 0, 10), "mouth": (mouth, 100, 80, 0, 8),
     "body": (body, 150, 170, 0, 0), "arm": (arm, 60, 80, 0, 26), "paw": (paw, 60, 60, 0, 16),
     "leg": (leg, 60, 80, 0, 26), "foot": (foot, 80, 50, 0, 8), "tail": (tail, 140, 130, 30, -36),
     "snout_asm": (snout_asm, 190, 120, 0, 10),
+    "arm_up": (arm_up, 40, 50, 0, 12), "arm_lo": (arm_lo, 40, 50, 0, 12), "leg_up": (leg_up, 40, 50, 0, 12), "leg_lo": (leg_lo, 40, 50, 0, 12),
 }
 
 ASSEMBLY = [

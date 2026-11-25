@@ -8,9 +8,10 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.Typeface
-import android.media.AudioManager
+import android.media.AudioAttributes
+import android.media.AudioFormat
+import android.media.AudioTrack
 import android.media.MediaPlayer
-import android.media.ToneGenerator
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
@@ -26,6 +27,7 @@ import android.text.style.BackgroundColorSpan
 import android.text.style.ForegroundColorSpan
 import android.text.style.RelativeSizeSpan
 import android.view.Gravity
+import android.animation.ObjectAnimator
 import android.view.View
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
@@ -49,7 +51,16 @@ class MainActivity : Activity() {
     private var aligner: Aligner? = null
     private var lastUri: Uri? = null
     private var player: MediaPlayer? = null
-    private val beep by lazy { ToneGenerator(AudioManager.STREAM_MUSIC, 85) }
+    // voice studio
+    private lateinit var studio: View
+    private lateinit var studioStatus: TextView
+    private lateinit var presetButtons: Map<VoicePreset, Button>
+    private var studioBase: FloatArray? = null      // cleaned take (cuts, noise gate) before effects
+    private var studioRate = 48000
+    private var studioCuts = 0
+    private var selected = VoicePreset.STUDIO
+    private val rendered = HashMap<VoicePreset, FloatArray>()
+    @Volatile private var previewTrack: AudioTrack? = null
 
     // setup screen
     private lateinit var setup: View
@@ -61,6 +72,7 @@ class MainActivity : Activity() {
     private lateinit var strictGroup: RadioGroup
     private lateinit var cbNoise: CheckBox
     private lateinit var cbPauses: CheckBox
+    private lateinit var cbVibrate: CheckBox
     private lateinit var btnStart: Button
     private lateinit var lastLabel: TextView
     private lateinit var lastRow: LinearLayout
@@ -82,9 +94,9 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         LibVosk.setLogLevel(LogLevel.WARNINGS)
         val root = FrameLayout(this)
-        setup = buildSetup(); recView = buildRecorder()
-        root.addView(setup); root.addView(recView)
-        recView.visibility = View.GONE
+        setup = buildSetup(); recView = buildRecorder(); studio = buildStudio()
+        root.addView(setup); root.addView(recView); root.addView(studio)
+        recView.visibility = View.GONE; studio.visibility = View.GONE
         setContentView(root)
         refreshModel()
     }
@@ -101,7 +113,7 @@ class MainActivity : Activity() {
     private fun buildSetup(): View {
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(18), dp(18), dp(18), dp(30)) }
         col.addView(label("🎙  Hindi Voiceover Recorder", 24f, true))
-        col.addView(label("Script Roman Hindi mein likhiye. Har sahi bola gaya shabd aage badhega; galat shabd par beep hogi aur woh hissa recording se kat jayega.", 14f))
+        col.addView(label("Script Roman Hindi mein likhiye. Har sahi bola gaya shabd aage badhega; galat shabd laal ho jayega (koi awaaz nahi) aur woh hissa recording se kat jayega.", 14f))
 
         modelStatus = label("", 14f)
         modelProgress = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply { max = 100; visibility = View.GONE }
@@ -126,7 +138,8 @@ class MainActivity : Activity() {
         col.addView(strictGroup)
         cbNoise = CheckBox(this).apply { text = "Remove background noise"; setTextColor(Color.WHITE); isChecked = prefs.getBoolean("noise", true) }
         cbPauses = CheckBox(this).apply { text = "Shorten long pauses"; setTextColor(Color.WHITE); isChecked = prefs.getBoolean("pauses", true) }
-        col.addView(cbNoise); col.addView(cbPauses)
+        cbVibrate = CheckBox(this).apply { text = "Vibrate on mistake (off = only red word, zero sound)"; setTextColor(Color.WHITE); isChecked = prefs.getBoolean("vibrate", false) }
+        col.addView(cbNoise); col.addView(cbPauses); col.addView(cbVibrate)
 
         btnStart = button("●  START RECORDING", Color.rgb(210, 30, 45)) { startRecording() }.apply { textSize = 20f; minHeight = dp(64) }
         col.addView(Space(this).apply { minimumHeight = dp(14) }); col.addView(btnStart)
@@ -209,7 +222,7 @@ class MainActivity : Activity() {
         if (words.isEmpty()) return toast("Script khaali hai")
         val strict = strictGroup.findViewById<RadioButton>(strictGroup.checkedRadioButtonId)?.tag as? Strictness ?: Strictness.STRICT
         prefs.edit().putString("script", scriptBox.text.toString()).putInt("strict", strict.ordinal)
-            .putBoolean("noise", cbNoise.isChecked).putBoolean("pauses", cbPauses.isChecked).apply()
+            .putBoolean("noise", cbNoise.isChecked).putBoolean("pauses", cbPauses.isChecked).putBoolean("vibrate", cbVibrate.isChecked).apply()
         if (Script.hasDigits(words)) {
             AlertDialog.Builder(this).setTitle("Numbers in script")
                 .setMessage("Numbers like 2021 are hard to check. Better write them in words (e.g. \"do hazaar ikkees\"). Continue anyway?")
@@ -227,7 +240,7 @@ class MainActivity : Activity() {
             try {
                 val m = model ?: Model(path).also { model = it }
                 val al = Aligner(words, WordMatcher(strict))
-                val eng = RecorderEngine(m, al, File(cacheDir, "take.pcm"), cbNoise.isChecked, listener)
+                val eng = RecorderEngine(m, al, File(cacheDir, "take.pcm"), cbNoise.isChecked, cbVibrate.isChecked, listener)
                 ui.post {
                     aligner = al; engine = eng; committed = 0; preview = 0
                     setup.visibility = View.GONE; recView.visibility = View.VISIBLE
@@ -249,11 +262,12 @@ class MainActivity : Activity() {
             render()
         }.let { }
         override fun onWrong(heard: String) = ui.post {
-            redUntil = SystemClock.elapsedRealtime() + 800
-            beep.startTone(ToneGenerator.TONE_SUP_ERROR, 250)
-            (getSystemService(VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator.vibrate(VibrationEffect.createOneShot(250, 255))
+            redUntil = SystemClock.elapsedRealtime() + 900
+            // no sound at all: red word + shake (+ optional vibration)
+            ObjectAnimator.ofFloat(prompter, "translationX", 0f, 22f, -22f, 16f, -16f, 8f, -8f, 0f).setDuration(450).start()
+            if (cbVibrate.isChecked) (getSystemService(VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator.vibrate(VibrationEffect.createOneShot(120, 180))
             heardText.text = "✗ Galat: \"$heard\"  — dobara boliye"
-            render(); ui.postDelayed({ render() }, 820)
+            render(); ui.postDelayed({ render() }, 920)
         }.let { }
         override fun onLevel(level: Float) = ui.post { levelBar.progress = (level * 400).toInt().coerceIn(0, 100) }.let { }
         override fun onFinishedScript() = ui.post { stopAndSave() }.let { }
@@ -301,25 +315,114 @@ class MainActivity : Activity() {
     private fun stopAndSave() {
         val e = engine ?: return
         engine = null
-        heardText.text = "Saving…"
+        heardText.text = "Processing…"
         val shorten = cbPauses.isChecked; val denoise = cbNoise.isChecked
         thread {
             try {
                 val res = e.stop()
                 val x = AudioExporter.readRaw(res.rawFile)
                 val y = AudioExporter.process(x, res.sampleRate, res.cuts, shorten, denoise)
-                val name = "voiceover_" + SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date()) + ".wav"
-                val uri = saveWav(name, AudioExporter.wavBytes(y, res.sampleRate))
-                ui.post {
-                    lastUri = uri
-                    lastLabel.text = "✅ Saved: Music/HindiVoiceover/$name  (${y.size / res.sampleRate} s, ${res.cuts.size} cuts)"
-                    lastRow.visibility = View.VISIBLE
-                    showSetup()
-                }
+                ui.post { openStudio(y, res.sampleRate, res.cuts.size) }
             } catch (ex: Exception) {
-                ui.post { toast("Save failed: ${ex.message}"); showSetup() }
+                ui.post { toast("Processing failed: ${ex.message}"); showSetup() }
             }
         }
+    }
+
+    // ------------------------------------------------------------------ voice studio (effects)
+    private fun buildStudio(): View {
+        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(18), dp(18), dp(18), dp(24)) }
+        col.addView(label("✨ Voice Studio", 24f, true))
+        studioStatus = label("Effect chuniye, sun kar dekhiye, phir save kijiye.", 14f)
+        col.addView(studioStatus)
+        val map = LinkedHashMap<VoicePreset, Button>()
+        for (p in VoicePreset.values()) {
+            val b = button("${p.title}\n${p.hint}") { choose(p) }.apply { gravity = Gravity.START or Gravity.CENTER_VERTICAL; setPadding(dp(14), dp(10), dp(14), dp(10)); textSize = 15f }
+            col.addView(b, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { setMargins(0, dp(4), 0, dp(4)) })
+            map[p] = b
+        }
+        presetButtons = map
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        row.addView(button("▶ Preview") { preview() }, LinearLayout.LayoutParams(0, dp(56), 1f).apply { setMargins(0, dp(10), dp(4), 0) })
+        row.addView(button("■ Stop") { stopPreview() }, LinearLayout.LayoutParams(0, dp(56), 1f).apply { setMargins(dp(4), dp(10), 0, 0) })
+        col.addView(row)
+        col.addView(button("💾  SAVE WITH THIS EFFECT", Color.rgb(210, 30, 45)) { saveStudio(true) }.apply { textSize = 18f },
+            LinearLayout.LayoutParams(MATCH_PARENT, dp(62)).apply { setMargins(0, dp(12), 0, 0) })
+        col.addView(button("Save without effect (clean)") { saveStudio(false) }, LinearLayout.LayoutParams(MATCH_PARENT, dp(52)).apply { setMargins(0, dp(8), 0, 0) })
+        col.addView(button("Discard recording") {
+            AlertDialog.Builder(this).setMessage("Delete this recording?").setPositiveButton("Delete") { _, _ -> stopPreview(); studioBase = null; rendered.clear(); showSetup() }
+                .setNegativeButton("Cancel", null).show()
+        }, LinearLayout.LayoutParams(MATCH_PARENT, dp(52)).apply { setMargins(0, dp(8), 0, 0) })
+        return ScrollView(this).apply { setBackgroundColor(Color.rgb(18, 19, 26)); addView(col) }
+    }
+
+    private fun openStudio(base: FloatArray, sr: Int, cuts: Int) {
+        studioBase = base; studioRate = sr; studioCuts = cuts; rendered.clear()
+        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        recView.visibility = View.GONE; setup.visibility = View.GONE; studio.visibility = View.VISIBLE
+        studioStatus.text = "Recording ready: ${base.size / sr} s, $cuts galat hisse kaat diye gaye.\nEffect chuniye aur ▶ Preview dabaiye."
+        choose(VoicePreset.valueOf(prefs.getString("preset", VoicePreset.STUDIO.name) ?: VoicePreset.STUDIO.name))
+    }
+
+    private fun choose(p: VoicePreset) {
+        selected = p
+        presetButtons.forEach { (k, b) -> b.setBackgroundColor(if (k == p) Color.rgb(255, 214, 10) else Color.rgb(60, 64, 80)); b.setTextColor(if (k == p) Color.BLACK else Color.WHITE) }
+        prefs.edit().putString("preset", p.name).apply()
+    }
+
+    /** Renders the chosen effect (cached) on a background thread. */
+    private fun render(p: VoicePreset, done: (FloatArray) -> Unit) {
+        rendered[p]?.let { return done(it) }
+        val base = studioBase ?: return
+        studioStatus.text = "Applying ${p.title}…"
+        thread {
+            val y = VoiceFx.apply(base, studioRate, p)
+            ui.post { rendered[p] = y; studioStatus.text = "${p.title}: ${p.hint}"; done(y) }
+        }
+    }
+
+    private fun preview() {
+        stopPreview()
+        render(selected) { y ->
+            thread {
+                val sr = studioRate
+                val track = AudioTrack.Builder()
+                    .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
+                    .setAudioFormat(AudioFormat.Builder().setEncoding(AudioFormat.ENCODING_PCM_16BIT).setSampleRate(sr).setChannelMask(AudioFormat.CHANNEL_OUT_MONO).build())
+                    .setTransferMode(AudioTrack.MODE_STREAM).build()
+                previewTrack = track; track.play()
+                val chunk = ShortArray(sr / 10); var i = 0
+                while (i < y.size && previewTrack === track) {
+                    val n = minOf(chunk.size, y.size - i)
+                    for (k in 0 until n) chunk[k] = (y[i + k].coerceIn(-1f, 1f) * 32767).toInt().toShort()
+                    track.write(chunk, 0, n); i += n
+                }
+                runCatching { track.stop(); track.release() }
+            }
+        }
+    }
+
+    private fun stopPreview() { previewTrack = null }
+
+    private fun saveStudio(withEffect: Boolean) {
+        stopPreview()
+        val sr = studioRate
+        val finishSave = { y: FloatArray, tag: String ->
+            thread {
+                try {
+                    val name = "voiceover_" + SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date()) + "_" + tag + ".wav"
+                    val uri = saveWav(name, AudioExporter.wavBytes(y, sr))
+                    ui.post {
+                        lastUri = uri
+                        lastLabel.text = "✅ Saved: Music/HindiVoiceover/$name  (${y.size / sr} s)"
+                        lastRow.visibility = View.VISIBLE
+                        studioBase = null; rendered.clear(); showSetup()
+                    }
+                } catch (ex: Exception) { ui.post { toast("Save failed: ${ex.message}") } }
+            }
+        }
+        if (withEffect) render(selected) { finishSave(it, selected.name.lowercase()) }
+        else studioBase?.let { finishSave(VoiceFx.finish(it, sr), "clean") }
     }
 
     private fun saveWav(name: String, bytes: ByteArray): Uri {
@@ -338,7 +441,7 @@ class MainActivity : Activity() {
 
     private fun showSetup() {
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        recView.visibility = View.GONE; setup.visibility = View.VISIBLE
+        recView.visibility = View.GONE; studio.visibility = View.GONE; setup.visibility = View.VISIBLE
     }
 
     private fun play() {
@@ -357,10 +460,13 @@ class MainActivity : Activity() {
         if (recView.visibility == View.VISIBLE) {
             AlertDialog.Builder(this).setMessage("Stop and save the recording?")
                 .setPositiveButton("Save") { _, _ -> stopAndSave() }.setNegativeButton("Continue", null).show()
+        } else if (studio.visibility == View.VISIBLE) {
+            AlertDialog.Builder(this).setMessage("Save with the selected effect?")
+                .setPositiveButton("Save") { _, _ -> saveStudio(true) }.setNegativeButton("Stay", null).show()
         } else super.onBackPressed()
     }
 
-    override fun onDestroy() { super.onDestroy(); player?.release(); engine?.stop() }
+    override fun onDestroy() { super.onDestroy(); stopPreview(); player?.release(); engine?.stop() }
 
     private fun toast(t: String) { Toast.makeText(this, t, Toast.LENGTH_LONG).show() }
 }

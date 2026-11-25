@@ -31,6 +31,7 @@ class RecorderEngine(
     private val aligner: Aligner,
     private val rawFile: File,
     private val noiseSuppression: Boolean,
+    private val vibrateOnError: Boolean,
     private val listener: Listener,
 ) {
     interface Listener {
@@ -65,11 +66,11 @@ class RecorderEngine(
         return RecordingResult(rawFile, sampleRate, synchronized(cuts) { cuts.toList() }, fedSamples16k / 16000.0)
     }
 
-    /** Marks "now" for removal (the error beep) and keeps the recognizer from hearing the beep. */
-    private fun cutBeep() {
+    /** The app makes NO sound on errors. Only if the user enabled vibration, the short buzz is cut out. */
+    private fun cutVibration() {
         val now = fedSamples16k / 16000.0
-        synchronized(cuts) { cuts += Cut(now - 0.05, now + 0.55) }
-        muteRecognizerUntil = fedSamples16k + (0.65 * 16000).toLong()
+        synchronized(cuts) { cuts += Cut(now - 0.03, now + 0.35) }
+        muteRecognizerUntil = fedSamples16k + (0.35 * 16000).toLong()
     }
 
     @SuppressLint("MissingPermission")
@@ -136,7 +137,7 @@ class RecorderEngine(
             out.fillers.forEach { cuts += Cut(it.start - 0.04, it.end + 0.04) }
         }
         listener.onProgress(out.index, out.index, o.optString("text"))
-        if (out.wrong.isNotEmpty()) { cutBeep(); listener.onWrong(out.wrong.joinToString(" ") { it.word }) }
+        if (out.wrong.isNotEmpty()) { if (vibrateOnError) cutVibration(); listener.onWrong(out.wrong.joinToString(" ") { it.word }) }
     }
 
     fun skip() = post { aligner.skip(); spoken.addLast(Heard("", -1.0, -1.0)); listener.onProgress(aligner.index, aligner.index, "") }

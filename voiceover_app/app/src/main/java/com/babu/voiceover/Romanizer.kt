@@ -14,8 +14,9 @@ object Romanizer {
         'प' to "p", 'फ' to "ph", 'ब' to "b", 'भ' to "bh", 'म' to "m",
         'य' to "y", 'र' to "r", 'ल' to "l", 'व' to "v", 'श' to "sh",
         'ष' to "sh", 'स' to "s", 'ह' to "h", 'ळ' to "l",
-        // precomposed nukta letters
-        'क़' to "q", 'ख़' to "kh", 'ग़' to "g", 'ज़' to "z", 'ड़' to "r", 'ढ़' to "rh", 'फ़' to "f", 'य़' to "y",
+        // precomposed nukta letters (single code points U+0958..U+095F)
+        '\u0958' to "q", '\u0959' to "kh", '\u095A' to "g", '\u095B' to "z",
+        '\u095C' to "r", '\u095D' to "rh", '\u095E' to "f", '\u095F' to "y",
     )
     private val nuktaForms = mapOf('क' to "q", 'ख' to "kh", 'ग' to "g", 'ज' to "z", 'ड' to "r", 'ढ' to "rh", 'फ' to "f", 'य' to "y")
     private val vowels = mapOf(

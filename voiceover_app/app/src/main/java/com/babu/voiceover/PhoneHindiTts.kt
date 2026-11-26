@@ -24,7 +24,7 @@ class PhoneHindiTts(private val ctx: Context, onReady: (PhoneHindiTts, String?) 
             if (status != TextToSpeech.SUCCESS) { onReady(this, "Text-to-speech engine not available on this phone"); return@OnInitListener }
             val r = tts.setLanguage(hindi)
             voices = runCatching { tts.voices.filter { it.locale.language == "hi" && !it.features.contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED) } }
-                .getOrDefault(emptyList()).sortedWith(compareByDescending<Voice> { it.quality }.thenBy { it.isNetworkConnectionRequired }.thenBy { it.name })
+                .getOrDefault(emptyList()).sortedWith(compareByDescending<Voice> { it.quality }.thenByDescending { it.isNetworkConnectionRequired }.thenBy { it.name })
             onReady(this, if (r == TextToSpeech.LANG_MISSING_DATA || r == TextToSpeech.LANG_NOT_SUPPORTED)
                 "Hindi voice data is not installed. Open: Settings → Text-to-speech → Google → Install voice data → हिन्दी" else null)
         }
@@ -38,14 +38,23 @@ class PhoneHindiTts(private val ctx: Context, onReady: (PhoneHindiTts, String?) 
         return "${v.name.removePrefix("hi-in-x-").removePrefix("hi-IN-")}  ($kind) $q"
     }
 
-    /** Speaks Devanagari text into audio; long scripts are split at sentence ends and joined with short pauses. */
+    /**
+     * Speaks Devanagari text sentence by sentence. To sound less robotic, every sentence gets a slightly
+     * different pitch and pace (as a human speaker does), questions rise a little, and pauses follow the
+     * punctuation (longer after "…", "?" and "!").
+     */
     fun synthesize(text: String, voice: Voice?, rate: Float, pitch: Float, progress: (Int, Int) -> Unit): Pair<FloatArray, Int> {
         if (voice != null) tts.voice = voice else tts.language = hindi
-        tts.setSpeechRate(rate); tts.setPitch(pitch)
-        val parts = SarvamTts.chunk(text, minOf(TextToSpeech.getMaxSpeechInputLength() - 50, 1500))
-        val pcm = mutableListOf<FloatArray>(); var rate0 = 24000
-        for ((i, part) in parts.withIndex()) {
-            progress(i, parts.size)
+        val max = minOf(TextToSpeech.getMaxSpeechInputLength() - 50, 1500)
+        val sentences = Regex("(?<=[।.!?…])\\s+").split(text.trim()).filter { it.isNotBlank() }.flatMap { SarvamTts.chunk(it, max) }
+        val rateVar = floatArrayOf(0f, 0.03f, -0.02f, 0.015f, -0.025f, 0.01f)
+        val pitchVar = floatArrayOf(0f, -0.02f, 0.02f, -0.01f, 0.015f, -0.015f)
+        val pcm = mutableListOf<Pair<FloatArray, Double>>(); var rate0 = 24000
+        for ((i, part) in sentences.withIndex()) {
+            progress(i, sentences.size)
+            val question = part.trimEnd().endsWith("?")
+            tts.setSpeechRate(rate * (1 + rateVar[i % rateVar.size]))
+            tts.setPitch(pitch * (1 + pitchVar[i % pitchVar.size] + if (question) 0.03f else 0f))
             val f = File(ctx.cacheDir, "tts_$i.wav")
             val latch = CountDownLatch(1); var err: String? = null
             tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
@@ -57,13 +66,33 @@ class PhoneHindiTts(private val ctx: Context, onReady: (PhoneHindiTts, String?) 
             if (tts.synthesizeToFile(part, Bundle(), f, "u$i") != TextToSpeech.SUCCESS) throw IllegalStateException("Could not start the voice engine")
             if (!latch.await(120, TimeUnit.SECONDS)) throw IllegalStateException("Voice engine timed out")
             err?.let { throw IllegalStateException(it) }
-            val (x, sr) = SarvamTts.decodeWav(f.readBytes()); rate0 = sr; pcm += x; f.delete()
+            val (x, sr) = SarvamTts.decodeWav(f.readBytes()); rate0 = sr; f.delete()
+            val end = part.trimEnd()
+            val pause = when {
+                end.endsWith("…") || end.endsWith("...") -> 0.6
+                end.endsWith("?") || end.endsWith("!") -> 0.45
+                end.endsWith("।") || end.endsWith(".") -> 0.38
+                else -> 0.25
+            }
+            pcm += trimEdges(x, sr) to pause
         }
-        progress(parts.size, parts.size)
-        val gap = (0.25 * rate0).toInt()
-        val y = FloatArray(pcm.sumOf { it.size } + gap * (pcm.size - 1).coerceAtLeast(0)); var n = 0
-        pcm.forEachIndexed { i, x -> if (i > 0) n += gap; System.arraycopy(x, 0, y, n, x.size); n += x.size }
-        return y to rate0
+        progress(sentences.size, sentences.size)
+        val total = pcm.sumOf { it.first.size } + pcm.dropLast(1).sumOf { (it.second * rate0).toInt() }
+        val y = FloatArray(total); var n = 0
+        pcm.forEachIndexed { i, (x, pause) ->
+            System.arraycopy(x, 0, y, n, x.size); n += x.size
+            if (i < pcm.size - 1) n += (pause * rate0).toInt()
+        }
+        return VoiceFx.humanize(y, rate0) to rate0
+    }
+
+    /** Removes the engine's own leading/trailing silence so our pauses are exact. */
+    private fun trimEdges(x: FloatArray, sr: Int): FloatArray {
+        var a = 0; var b = x.size - 1
+        while (a < b && kotlin.math.abs(x[a]) < 0.003f) a++
+        while (b > a && kotlin.math.abs(x[b]) < 0.003f) b--
+        val pad = (0.03 * sr).toInt()
+        return x.copyOfRange(maxOf(0, a - pad), minOf(x.size, b + pad + 1))
     }
 
     fun shutdown() = runCatching { tts.shutdown() }

@@ -32,6 +32,16 @@ class VoiceFxTest {
         }
     }
 
+    @Test fun humanizeIsSafe() {
+        val x = FloatArray(sr * 3) { i -> val t = i / sr.toDouble(); (0.3 * sin(2 * PI * 150 * t) * (if (t in 1.0..1.5) 0.0 else 1.0)).toFloat() }
+        val y = VoiceFx.humanize(x, sr)
+        assertTrue(y.size == x.size && y.all { it.isFinite() } && y.maxOf { abs(it) } <= 0.9f)
+        // silence becomes faint room tone, not dead digital zero
+        val gap = (sr * 1.2).toInt() until (sr * 1.3).toInt()
+        val level = gap.map { abs(y[it]) }.average()
+        assertTrue("room tone $level", level in 0.00005..0.01)
+    }
+
     /** Optional: FX_DEMO_IN=voice.wav (48 kHz mono 16-bit) FX_DEMO_OUT=dir -> one demo file per preset. */
     @Test fun renderDemos() {
         val inp = System.getenv("FX_DEMO_IN") ?: return

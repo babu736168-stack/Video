@@ -11,7 +11,8 @@ Teleprompter + recorder for Hindi voiceovers written in **Roman Hindi**.
 * Fillers (`hmm`, `umm`) are cut silently.
 * **Text → Hindi Voice**
   * **FREE (default):** the phone's own Google Hindi voices — no account, no key, no charges; offline voices or the more
-    natural online ones. Roman Hindi is converted to देवनागरी offline by the app (editable), speed + pitch control.
+    natural online ones (picked automatically). Less robotic: per-sentence pitch/pace variation, punctuation-based
+    breathing pauses, warm "natural polish" and faint room tone. Roman Hindi → देवनागरी offline (editable), speed + pitch.
   * **PREMIUM (optional):** Sarvam AI Bulbul with your own API key (paid credits).
   * Result opens in Voice Studio (Deep Radio, Warm …) before saving.
 * Clean audio: 48 kHz mono WAV, noise suppression, 80 Hz rumble filter, noise gate, optional pause shortening,

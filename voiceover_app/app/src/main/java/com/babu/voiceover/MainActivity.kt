@@ -400,9 +400,9 @@ class MainActivity : Activity() {
         col.addView(ttsFixData)
 
         ttsPaceLabel = label("", 15f, true)
-        ttsPace = SeekBar(this).apply { max = 150; progress = prefs.getInt("tts_pace", 50) }   // 0.5 .. 2.0
+        ttsPace = SeekBar(this).apply { max = 150; progress = prefs.getInt("tts_pace2", 42) }   // 0.5 .. 2.0, default 0.92 (calm, natural)
         ttsPitchLabel = label("", 15f, true)
-        ttsPitch = SeekBar(this).apply { max = 100; progress = prefs.getInt("tts_pitch", 45) }  // 0.5 .. 1.5 (lower = deeper)
+        ttsPitch = SeekBar(this).apply { max = 100; progress = prefs.getInt("tts_pitch2", 46) }  // 0.5 .. 1.5, default 0.96
         val upd = object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(sb: SeekBar?, p: Int, u: Boolean) = updateSliderLabels()
             override fun onStartTrackingTouch(sb: SeekBar?) {}
@@ -450,10 +450,10 @@ class MainActivity : Activity() {
             phoneTts = PhoneHindiTts(this) { tts, problem ->
                 ui.post {
                     if (problem != null) { ttsStatus.text = "⚠ $problem"; ttsFixData.visibility = View.VISIBLE }
-                    if (freeEngine) setVoices(tts.voices.map { tts.label(it) }.ifEmpty { listOf("Default Hindi voice") }, prefs.getInt("tts_voice_phone", 0))
+                    if (freeEngine) setVoices(tts.voices.map { tts.label(it) }.ifEmpty { listOf("Default Hindi voice") }, prefs.getInt("tts_voice_phone2", 0))
                 }
             }
-        } else setVoices(p.voices.map { p.label(it) }.ifEmpty { listOf("Default Hindi voice") }, prefs.getInt("tts_voice_phone", 0))
+        } else setVoices(p.voices.map { p.label(it) }.ifEmpty { listOf("Default Hindi voice") }, prefs.getInt("tts_voice_phone2", 0))
     }
 
     private fun openTts() {
@@ -465,9 +465,9 @@ class MainActivity : Activity() {
     private fun saveTtsPrefs() = prefs.edit().putString("sarvam_key", ttsKey.text.toString().trim())
         .putInt("tts_engine", ttsEngine.selectedItemPosition)
         .putString("tts_text", ttsText.text.toString())
-        .putInt(if (freeEngine) "tts_voice_phone" else "tts_voice_sarvam", ttsVoice.selectedItemPosition)
+        .putInt(if (freeEngine) "tts_voice_phone2" else "tts_voice_sarvam", ttsVoice.selectedItemPosition)
         .putString("tts_custom_voice", ttsCustomVoice.text.toString().trim())
-        .putInt("tts_model", ttsModel.selectedItemPosition).putInt("tts_pace", ttsPace.progress).putInt("tts_pitch", ttsPitch.progress).apply()
+        .putInt("tts_model", ttsModel.selectedItemPosition).putInt("tts_pace2", ttsPace.progress).putInt("tts_pitch2", ttsPitch.progress).apply()
 
     private fun client(): SarvamTts? {
         val key = ttsKey.text.toString().trim()
@@ -510,7 +510,7 @@ class MainActivity : Activity() {
             thread {
                 try {
                     val (audio, sr) = p.synthesize(text, voice, pace.toFloat(), pitch.toFloat()) { i, n -> ui.post { ttsStatus.text = "Generating voice… ${minOf(i + 1, n)}/$n" } }
-                    ui.post { ttsGo.isEnabled = true; ttsStatus.text = ""; openStudio(audio, sr, "Free Hindi voice ready: ${audio.size / sr} s.") }
+                    ui.post { ttsGo.isEnabled = true; ttsStatus.text = ""; openStudio(audio, sr, "Free Hindi voice ready: ${audio.size / sr} s (natural polish applied). Tip: try \"Warm\" or \"Studio\".") }
                 } catch (e: Exception) { ui.post { ttsGo.isEnabled = true; ttsStatus.text = "✗ ${e.message}" } }
             }
             return

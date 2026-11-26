@@ -74,6 +74,25 @@ object VoiceFx {
         return finish(x, sr)
     }
 
+    /**
+     * Makes a synthetic (text-to-speech) voice sound more human: warmer tone, softer "s", gentle
+     * compression, a tiny room, and very faint room tone instead of dead digital silence.
+     */
+    fun humanize(input: FloatArray, sr: Int): FloatArray {
+        var x = biquad(input, Biquad.highPass(sr, 70.0))
+        x = eq(x, sr, low = 2.0, mud = -1.0, presence = 1.5, air = 0.5)
+        x = deEss(x, sr, 0.5)
+        x = compress(x, sr, -22.0, 2.0, 10.0, 160.0)
+        x = reverb(x, sr, room = 0.3, damp = 0.55, wet = 0.05)
+        x = finish(x, sr)
+        var seed = 12345L
+        for (i in x.indices) {   // room tone at about -60 dBFS (pink-ish noise)
+            seed = seed * 6364136223846793005L + 1442695040888963407L
+            x[i] += ((seed ushr 40).toInt() / 16777216f - 0.5f) * 0.002f
+        }
+        return x
+    }
+
     // ----------------------------------------------------------------- building blocks
     class Biquad(val b0: Double, val b1: Double, val b2: Double, val a1: Double, val a2: Double) {
         companion object {

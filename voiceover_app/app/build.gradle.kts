@@ -11,9 +11,9 @@ android {
         applicationId = "com.babu.voiceover"
         minSdk = 29          // Android 10+
         targetSdk = 35
-        versionCode = 5
-        versionName = "1.4"
-        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }  // real phones only: keeps the APK small
+        versionCode = 6
+        versionName = "1.4.1"
+        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64", "x86") }
     }
 
     signingConfigs {
@@ -22,6 +22,9 @@ android {
             storePassword = "voiceover123"
             keyAlias = "voiceover"
             keyPassword = "voiceover123"
+            enableV1Signing = true   // maximum installer compatibility
+            enableV2Signing = true
+            enableV3Signing = true
         }
     }
     buildTypes {
@@ -30,6 +33,7 @@ android {
             signingConfig = signingConfigs.getByName("release")
         }
     }
+    packaging { jniLibs { useLegacyPackaging = true } }   // compressed native libs: accepted by every installer
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

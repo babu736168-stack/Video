@@ -9,6 +9,9 @@ Teleprompter + recorder for Hindi voiceovers written in **Roman Hindi**.
 * Spelling variants of the same word are accepted (`nahi / nahin / nahee`, `hai / hain`, `kya / kyaa`, `mein / me` …);
   short words must match exactly in Strict mode (`ka / ki / ke`, `kya / kyon`).
 * Fillers (`hmm`, `umm`) are cut silently.
+* **Text → Hindi Voice** (Sarvam AI Bulbul, natural human-like Hindi): paste Roman Hindi or Devanagari,
+  Roman Hindi is converted to देवनागरी first (you can correct words), choose voice / model / speed, generate,
+  then polish it in Voice Studio. Needs internet and your own Sarvam API key (stored only on the phone).
 * Clean audio: 48 kHz mono WAV, noise suppression, 80 Hz rumble filter, noise gate, optional pause shortening,
   no background music. Saved to `Music/HindiVoiceover/`, with Play and Share buttons.
 * Buttons while recording: **Back** (re-say previous word; the old take is cut), **Skip** (when the recognizer

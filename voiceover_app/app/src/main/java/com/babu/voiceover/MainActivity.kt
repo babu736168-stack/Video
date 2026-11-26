@@ -53,11 +53,20 @@ class MainActivity : Activity() {
     private var player: MediaPlayer? = null
     // voice studio
     private lateinit var studio: View
+    private lateinit var ttsView: View
+    private lateinit var ttsKey: EditText
+    private lateinit var ttsText: EditText
+    private lateinit var ttsModel: Spinner
+    private lateinit var ttsVoice: Spinner
+    private lateinit var ttsCustomVoice: EditText
+    private lateinit var ttsPace: SeekBar
+    private lateinit var ttsPaceLabel: TextView
+    private lateinit var ttsStatus: TextView
+    private lateinit var ttsGo: Button
     private lateinit var studioStatus: TextView
     private lateinit var presetButtons: Map<VoicePreset, Button>
     private var studioBase: FloatArray? = null      // cleaned take (cuts, noise gate) before effects
     private var studioRate = 48000
-    private var studioCuts = 0
     private var selected = VoicePreset.STUDIO
     private val rendered = HashMap<VoicePreset, FloatArray>()
     @Volatile private var previewTrack: AudioTrack? = null
@@ -94,9 +103,9 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         LibVosk.setLogLevel(LogLevel.WARNINGS)
         val root = FrameLayout(this)
-        setup = buildSetup(); recView = buildRecorder(); studio = buildStudio()
-        root.addView(setup); root.addView(recView); root.addView(studio)
-        recView.visibility = View.GONE; studio.visibility = View.GONE
+        setup = buildSetup(); recView = buildRecorder(); studio = buildStudio(); ttsView = buildTts()
+        root.addView(setup); root.addView(recView); root.addView(studio); root.addView(ttsView)
+        recView.visibility = View.GONE; studio.visibility = View.GONE; ttsView.visibility = View.GONE
         setContentView(root)
         refreshModel()
     }
@@ -149,6 +158,8 @@ class MainActivity : Activity() {
         lastRow.addView(button("▶ Play") { play() }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
         lastRow.addView(button("Share") { share() }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
         col.addView(lastLabel); col.addView(lastRow)
+        col.addView(Space(this).apply { minimumHeight = dp(18) })
+        col.addView(button("🗣  TEXT → HINDI VOICE (AI, natural)", Color.rgb(30, 110, 200)) { openTts() }.apply { textSize = 17f; minHeight = dp(58) })
         return ScrollView(this).apply { setBackgroundColor(Color.rgb(18, 19, 26)); addView(col) }
     }
 
@@ -322,9 +333,121 @@ class MainActivity : Activity() {
                 val res = e.stop()
                 val x = AudioExporter.readRaw(res.rawFile)
                 val y = AudioExporter.process(x, res.sampleRate, res.cuts, shorten, denoise)
-                ui.post { openStudio(y, res.sampleRate, res.cuts.size) }
+                ui.post { openStudio(y, res.sampleRate, "Recording ready: ${y.size / res.sampleRate} s, ${res.cuts.size} galat hisse kaat diye gaye.") }
             } catch (ex: Exception) {
                 ui.post { toast("Processing failed: ${ex.message}"); showSetup() }
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------ text -> Hindi voice (Sarvam AI Bulbul)
+    private fun buildTts(): View {
+        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(18), dp(18), dp(18), dp(24)) }
+        col.addView(label("🗣 Text → Hindi Voice", 24f, true))
+        col.addView(label("Natural, human-like Hindi voice by Sarvam AI (Bulbul). Internet required.", 14f))
+        col.addView(label("Sarvam API key (dashboard.sarvam.ai)", 15f, true))
+        ttsKey = EditText(this).apply {
+            setText(prefs.getString("sarvam_key", "")); hint = "sk_…"; textSize = 15f; setTextColor(Color.WHITE); setHintTextColor(Color.GRAY)
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setBackgroundColor(Color.rgb(32, 34, 44)); setPadding(dp(12), dp(10), dp(12), dp(10))
+        }
+        col.addView(ttsKey)
+        col.addView(label("Script (Roman Hindi ya हिंदी)", 15f, true))
+        ttsText = EditText(this).apply {
+            minLines = 7; gravity = Gravity.TOP; textSize = 17f; setTextColor(Color.WHITE); setHintTextColor(Color.GRAY)
+            hint = "Yahan script likhiye ya paste kijiye…"; setBackgroundColor(Color.rgb(32, 34, 44)); setPadding(dp(12), dp(12), dp(12), dp(12))
+        }
+        col.addView(ttsText)
+        col.addView(button("अ  Roman Hindi → देवनागरी (check & correct words)") { convertScript() },
+            LinearLayout.LayoutParams(MATCH_PARENT, dp(50)).apply { setMargins(0, dp(6), 0, 0) })
+
+        fun spinner(items: List<String>, sel: Int) = Spinner(this).apply {
+            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, items)
+            setSelection(sel.coerceIn(0, items.size - 1)); setBackgroundColor(Color.rgb(200, 200, 210))
+        }
+        col.addView(label("Voice", 15f, true))
+        ttsVoice = spinner(SarvamTts.VOICES.map { it.label }, prefs.getInt("tts_voice", 0)); col.addView(ttsVoice)
+        ttsCustomVoice = EditText(this).apply {
+            setText(prefs.getString("tts_custom_voice", "")); hint = "…or type another Sarvam voice ID (optional)"; textSize = 14f
+            setTextColor(Color.WHITE); setHintTextColor(Color.GRAY); setBackgroundColor(Color.rgb(32, 34, 44)); setPadding(dp(12), dp(8), dp(12), dp(8))
+        }
+        col.addView(ttsCustomVoice, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { setMargins(0, dp(6), 0, 0) })
+        col.addView(label("Model", 15f, true))
+        ttsModel = spinner(SarvamTts.MODELS, prefs.getInt("tts_model", 0)); col.addView(ttsModel)
+        ttsPaceLabel = label("", 15f, true)
+        ttsPace = SeekBar(this).apply {
+            max = 150; progress = prefs.getInt("tts_pace", 50)   // 0.5 .. 2.0, default 1.0
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(sb: SeekBar?, p: Int, u: Boolean) { ttsPaceLabel.text = String.format(Locale.US, "Speed: %.2fx", pace()) }
+                override fun onStartTrackingTouch(sb: SeekBar?) {}
+                override fun onStopTrackingTouch(sb: SeekBar?) {}
+            })
+        }
+        ttsPaceLabel.text = String.format(Locale.US, "Speed: %.2fx", pace())
+        col.addView(ttsPaceLabel); col.addView(ttsPace)
+        ttsStatus = label("", 14f)
+        ttsGo = button("🎙  GENERATE HINDI VOICE", Color.rgb(210, 30, 45)) { generateTts() }.apply { textSize = 18f }
+        col.addView(ttsGo, LinearLayout.LayoutParams(MATCH_PARENT, dp(62)).apply { setMargins(0, dp(14), 0, 0) })
+        col.addView(ttsStatus)
+        col.addView(button("◀ Back") { showSetup() }, LinearLayout.LayoutParams(MATCH_PARENT, dp(50)).apply { setMargins(0, dp(10), 0, 0) })
+        return ScrollView(this).apply { setBackgroundColor(Color.rgb(18, 19, 26)); addView(col) }
+    }
+
+    private fun pace() = 0.5 + ttsPace.progress / 100.0
+
+    private fun openTts() {
+        if (ttsText.text.isBlank()) ttsText.setText(prefs.getString("tts_text", null) ?: scriptBox.text)
+        setup.visibility = View.GONE; ttsView.visibility = View.VISIBLE
+    }
+
+    private fun saveTtsPrefs() = prefs.edit().putString("sarvam_key", ttsKey.text.toString().trim())
+        .putString("tts_text", ttsText.text.toString()).putInt("tts_voice", ttsVoice.selectedItemPosition)
+        .putString("tts_custom_voice", ttsCustomVoice.text.toString().trim())
+        .putInt("tts_model", ttsModel.selectedItemPosition).putInt("tts_pace", ttsPace.progress).apply()
+
+    private fun client(): SarvamTts? {
+        val key = ttsKey.text.toString().trim()
+        if (key.isEmpty()) { toast("Pehle Sarvam API key daaliye"); return null }
+        return SarvamTts(key)
+    }
+
+    /** Shows the Devanagari version so wrong words can be corrected before speaking. */
+    private fun convertScript() {
+        val c = client() ?: return; saveTtsPrefs()
+        val text = ttsText.text.toString()
+        if (SarvamTts.hasDevanagari(text)) return toast("Script pehle se Devanagari mein hai")
+        ttsStatus.text = "Converting to Devanagari…"
+        thread {
+            val r = runCatching { c.transliterate(text) }
+            ui.post {
+                r.onSuccess { ttsText.setText(it); ttsStatus.text = "✅ Converted. Galat shabd ho to yahin theek kar dijiye, phir Generate." }
+                 .onFailure { ttsStatus.text = "✗ ${it.message}" }
+            }
+        }
+    }
+
+    private fun generateTts() {
+        val c = client() ?: return; saveTtsPrefs()
+        val text0 = ttsText.text.toString().trim()
+        if (text0.isEmpty()) return toast("Script khaali hai")
+        val voice = ttsCustomVoice.text.toString().trim().ifEmpty { SarvamTts.VOICES[ttsVoice.selectedItemPosition].id }
+        val model = SarvamTts.MODELS[ttsModel.selectedItemPosition]
+        val pace = pace()
+        ttsGo.isEnabled = false
+        thread {
+            try {
+                // Roman Hindi is converted first so it is spoken as pure Hindi, not read as English letters
+                val text = if (SarvamTts.hasDevanagari(text0)) text0 else {
+                    ui.post { ttsStatus.text = "Converting Roman Hindi → देवनागरी…" }
+                    c.transliterate(text0).also { t -> ui.post { ttsText.setText(t) } }
+                }
+                val (audio, sr) = c.speak(text, model, voice, pace, 0.0) { i, n -> ui.post { ttsStatus.text = "Generating voice… ${minOf(i + 1, n)}/$n" } }
+                ui.post {
+                    ttsGo.isEnabled = true; ttsStatus.text = ""
+                    openStudio(audio, sr, "Hindi voice ready: ${audio.size / sr} s (voice: $voice).")
+                }
+            } catch (e: Exception) {
+                ui.post { ttsGo.isEnabled = true; ttsStatus.text = "✗ ${e.message}" }
             }
         }
     }
@@ -356,11 +479,11 @@ class MainActivity : Activity() {
         return ScrollView(this).apply { setBackgroundColor(Color.rgb(18, 19, 26)); addView(col) }
     }
 
-    private fun openStudio(base: FloatArray, sr: Int, cuts: Int) {
-        studioBase = base; studioRate = sr; studioCuts = cuts; rendered.clear()
+    private fun openStudio(base: FloatArray, sr: Int, message: String) {
+        studioBase = base; studioRate = sr; rendered.clear()
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        recView.visibility = View.GONE; setup.visibility = View.GONE; studio.visibility = View.VISIBLE
-        studioStatus.text = "Recording ready: ${base.size / sr} s, $cuts galat hisse kaat diye gaye.\nEffect chuniye aur ▶ Preview dabaiye."
+        recView.visibility = View.GONE; setup.visibility = View.GONE; ttsView.visibility = View.GONE; studio.visibility = View.VISIBLE
+        studioStatus.text = "$message\nEffect chuniye aur ▶ Preview dabaiye."
         choose(VoicePreset.valueOf(prefs.getString("preset", VoicePreset.STUDIO.name) ?: VoicePreset.STUDIO.name))
     }
 
@@ -441,7 +564,7 @@ class MainActivity : Activity() {
 
     private fun showSetup() {
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        recView.visibility = View.GONE; studio.visibility = View.GONE; setup.visibility = View.VISIBLE
+        recView.visibility = View.GONE; studio.visibility = View.GONE; ttsView.visibility = View.GONE; setup.visibility = View.VISIBLE
     }
 
     private fun play() {
@@ -460,6 +583,8 @@ class MainActivity : Activity() {
         if (recView.visibility == View.VISIBLE) {
             AlertDialog.Builder(this).setMessage("Stop and save the recording?")
                 .setPositiveButton("Save") { _, _ -> stopAndSave() }.setNegativeButton("Continue", null).show()
+        } else if (ttsView.visibility == View.VISIBLE) {
+            showSetup()
         } else if (studio.visibility == View.VISIBLE) {
             AlertDialog.Builder(this).setMessage("Save with the selected effect?")
                 .setPositiveButton("Save") { _, _ -> saveStudio(true) }.setNegativeButton("Stay", null).show()

@@ -122,6 +122,12 @@ class MainActivity : Activity() {
     private fun buildSetup(): View {
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(18), dp(18), dp(18), dp(30)) }
         col.addView(label("🎙  Hindi Voiceover Recorder", 24f, true))
+        val ver = runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull() ?: "?"
+        col.addView(label("Version $ver", 12f).apply { setTextColor(Color.GRAY); setPadding(0, 0, 0, dp(6)) })
+        // the two main features, right at the top
+        col.addView(button("🗣  TEXT → HINDI VOICE  (free)", Color.rgb(30, 110, 200)) { openTts() }.apply { textSize = 19f },
+            LinearLayout.LayoutParams(MATCH_PARENT, dp(66)).apply { setMargins(0, dp(6), 0, dp(6)) })
+        col.addView(label("Neeche: apni awaaz record karne ke liye script likhiye aur START RECORDING dabaiye.", 13f).apply { setTextColor(Color.GRAY) })
         col.addView(label("Script Roman Hindi mein likhiye. Har sahi bola gaya shabd aage badhega; galat shabd laal ho jayega (koi awaaz nahi) aur woh hissa recording se kat jayega.", 14f))
 
         modelStatus = label("", 14f)
@@ -158,8 +164,7 @@ class MainActivity : Activity() {
         lastRow.addView(button("▶ Play") { play() }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
         lastRow.addView(button("Share") { share() }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
         col.addView(lastLabel); col.addView(lastRow)
-        col.addView(Space(this).apply { minimumHeight = dp(18) })
-        col.addView(button("🗣  TEXT → HINDI VOICE (free)", Color.rgb(30, 110, 200)) { openTts() }.apply { textSize = 17f; minHeight = dp(58) })
+
         return ScrollView(this).apply { setBackgroundColor(Color.rgb(18, 19, 26)); addView(col) }
     }
 

@@ -159,7 +159,7 @@ class MainActivity : Activity() {
         lastRow.addView(button("Share") { share() }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
         col.addView(lastLabel); col.addView(lastRow)
         col.addView(Space(this).apply { minimumHeight = dp(18) })
-        col.addView(button("🗣  TEXT → HINDI VOICE (AI, natural)", Color.rgb(30, 110, 200)) { openTts() }.apply { textSize = 17f; minHeight = dp(58) })
+        col.addView(button("🗣  TEXT → HINDI VOICE (free)", Color.rgb(30, 110, 200)) { openTts() }.apply { textSize = 17f; minHeight = dp(58) })
         return ScrollView(this).apply { setBackgroundColor(Color.rgb(18, 19, 26)); addView(col) }
     }
 
@@ -340,18 +340,43 @@ class MainActivity : Activity() {
         }
     }
 
-    // ------------------------------------------------------------------ text -> Hindi voice (Sarvam AI Bulbul)
+    // ------------------------------------------------------------------ text -> Hindi voice (FREE phone voice or Sarvam AI)
+    private val freeEngine get() = ttsEngine.selectedItemPosition == 0
+    private var phoneTts: PhoneHindiTts? = null
+    private lateinit var ttsEngine: Spinner
+    private lateinit var premiumBox: LinearLayout
+    private lateinit var ttsPitch: SeekBar
+    private lateinit var ttsPitchLabel: TextView
+    private lateinit var ttsFixData: Button
+
     private fun buildTts(): View {
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(18), dp(18), dp(18), dp(24)) }
         col.addView(label("🗣 Text → Hindi Voice", 24f, true))
-        col.addView(label("Natural, human-like Hindi voice by Sarvam AI (Bulbul). Internet required.", 14f))
-        col.addView(label("Sarvam API key (dashboard.sarvam.ai)", 15f, true))
+        fun spinner(items: List<String>, sel: Int) = Spinner(this).apply {
+            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, items)
+            setSelection(sel.coerceIn(0, maxOf(0, items.size - 1))); setBackgroundColor(Color.rgb(200, 200, 210))
+        }
+        col.addView(label("Voice engine", 15f, true))
+        ttsEngine = spinner(listOf("FREE — Google Hindi voice (on your phone, no charges)", "PREMIUM — Sarvam AI Bulbul (uses paid credits)"), prefs.getInt("tts_engine", 0))
+        col.addView(ttsEngine)
+
+        premiumBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        premiumBox.addView(label("Sarvam API key (dashboard.sarvam.ai)", 15f, true))
         ttsKey = EditText(this).apply {
             setText(prefs.getString("sarvam_key", "")); hint = "sk_…"; textSize = 15f; setTextColor(Color.WHITE); setHintTextColor(Color.GRAY)
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
             setBackgroundColor(Color.rgb(32, 34, 44)); setPadding(dp(12), dp(10), dp(12), dp(10))
         }
-        col.addView(ttsKey)
+        premiumBox.addView(ttsKey)
+        premiumBox.addView(label("Sarvam model", 15f, true))
+        ttsModel = spinner(SarvamTts.MODELS, prefs.getInt("tts_model", 0)); premiumBox.addView(ttsModel)
+        ttsCustomVoice = EditText(this).apply {
+            setText(prefs.getString("tts_custom_voice", "")); hint = "…or type another Sarvam voice ID (optional)"; textSize = 14f
+            setTextColor(Color.WHITE); setHintTextColor(Color.GRAY); setBackgroundColor(Color.rgb(32, 34, 44)); setPadding(dp(12), dp(8), dp(12), dp(8))
+        }
+        premiumBox.addView(ttsCustomVoice, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { setMargins(0, dp(6), 0, 0) })
+        col.addView(premiumBox)
+
         col.addView(label("Script (Roman Hindi ya हिंदी)", 15f, true))
         ttsText = EditText(this).apply {
             minLines = 7; gravity = Gravity.TOP; textSize = 17f; setTextColor(Color.WHITE); setHintTextColor(Color.GRAY)
@@ -361,49 +386,83 @@ class MainActivity : Activity() {
         col.addView(button("अ  Roman Hindi → देवनागरी (check & correct words)") { convertScript() },
             LinearLayout.LayoutParams(MATCH_PARENT, dp(50)).apply { setMargins(0, dp(6), 0, 0) })
 
-        fun spinner(items: List<String>, sel: Int) = Spinner(this).apply {
-            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, items)
-            setSelection(sel.coerceIn(0, items.size - 1)); setBackgroundColor(Color.rgb(200, 200, 210))
-        }
         col.addView(label("Voice", 15f, true))
-        ttsVoice = spinner(SarvamTts.VOICES.map { it.label }, prefs.getInt("tts_voice", 0)); col.addView(ttsVoice)
-        ttsCustomVoice = EditText(this).apply {
-            setText(prefs.getString("tts_custom_voice", "")); hint = "…or type another Sarvam voice ID (optional)"; textSize = 14f
-            setTextColor(Color.WHITE); setHintTextColor(Color.GRAY); setBackgroundColor(Color.rgb(32, 34, 44)); setPadding(dp(12), dp(8), dp(12), dp(8))
-        }
-        col.addView(ttsCustomVoice, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { setMargins(0, dp(6), 0, 0) })
-        col.addView(label("Model", 15f, true))
-        ttsModel = spinner(SarvamTts.MODELS, prefs.getInt("tts_model", 0)); col.addView(ttsModel)
+        ttsVoice = spinner(listOf("Loading voices…"), 0); col.addView(ttsVoice)
+        ttsFixData = button("Install Hindi voice on phone (free)") {
+            runCatching { startActivity(Intent(android.speech.tts.TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA)) }
+                .onFailure { startActivity(Intent("com.android.settings.TTS_SETTINGS")) }
+        }.apply { visibility = View.GONE }
+        col.addView(ttsFixData)
+
         ttsPaceLabel = label("", 15f, true)
-        ttsPace = SeekBar(this).apply {
-            max = 150; progress = prefs.getInt("tts_pace", 50)   // 0.5 .. 2.0, default 1.0
-            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(sb: SeekBar?, p: Int, u: Boolean) { ttsPaceLabel.text = String.format(Locale.US, "Speed: %.2fx", pace()) }
-                override fun onStartTrackingTouch(sb: SeekBar?) {}
-                override fun onStopTrackingTouch(sb: SeekBar?) {}
-            })
+        ttsPace = SeekBar(this).apply { max = 150; progress = prefs.getInt("tts_pace", 50) }   // 0.5 .. 2.0
+        ttsPitchLabel = label("", 15f, true)
+        ttsPitch = SeekBar(this).apply { max = 100; progress = prefs.getInt("tts_pitch", 45) }  // 0.5 .. 1.5 (lower = deeper)
+        val upd = object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sb: SeekBar?, p: Int, u: Boolean) = updateSliderLabels()
+            override fun onStartTrackingTouch(sb: SeekBar?) {}
+            override fun onStopTrackingTouch(sb: SeekBar?) {}
         }
-        ttsPaceLabel.text = String.format(Locale.US, "Speed: %.2fx", pace())
-        col.addView(ttsPaceLabel); col.addView(ttsPace)
+        ttsPace.setOnSeekBarChangeListener(upd); ttsPitch.setOnSeekBarChangeListener(upd)
+        col.addView(ttsPaceLabel); col.addView(ttsPace); col.addView(ttsPitchLabel); col.addView(ttsPitch)
+        updateSliderLabels()
+
         ttsStatus = label("", 14f)
         ttsGo = button("🎙  GENERATE HINDI VOICE", Color.rgb(210, 30, 45)) { generateTts() }.apply { textSize = 18f }
         col.addView(ttsGo, LinearLayout.LayoutParams(MATCH_PARENT, dp(62)).apply { setMargins(0, dp(14), 0, 0) })
         col.addView(ttsStatus)
+        col.addView(label("Tip: generate karne ke baad Voice Studio mein \"Deep Radio\" ya \"Warm\" lagaiye — awaaz aur bhari aur natural lagegi.", 13f))
         col.addView(button("◀ Back") { showSetup() }, LinearLayout.LayoutParams(MATCH_PARENT, dp(50)).apply { setMargins(0, dp(10), 0, 0) })
+
+        ttsEngine.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(p: AdapterView<*>?, v: View?, pos: Int, id: Long) = applyEngine()
+            override fun onNothingSelected(p: AdapterView<*>?) {}
+        }
         return ScrollView(this).apply { setBackgroundColor(Color.rgb(18, 19, 26)); addView(col) }
     }
 
     private fun pace() = 0.5 + ttsPace.progress / 100.0
+    private fun pitch() = 0.5 + ttsPitch.progress / 100.0
+    private fun updateSliderLabels() {
+        ttsPaceLabel.text = String.format(Locale.US, "Speed: %.2fx", pace())
+        ttsPitchLabel.text = String.format(Locale.US, "Pitch: %.2f  (kam = gehri awaaz)", pitch())
+    }
+
+    private fun setVoices(items: List<String>, sel: Int) {
+        ttsVoice.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, items)
+        ttsVoice.setSelection(sel.coerceIn(0, maxOf(0, items.size - 1)))
+    }
+
+    /** Shows the right options for the chosen engine. */
+    private fun applyEngine() {
+        premiumBox.visibility = if (freeEngine) View.GONE else View.VISIBLE
+        ttsPitch.visibility = if (freeEngine) View.VISIBLE else View.GONE; ttsPitchLabel.visibility = ttsPitch.visibility
+        ttsFixData.visibility = View.GONE
+        if (!freeEngine) { setVoices(SarvamTts.VOICES.map { it.label }, prefs.getInt("tts_voice_sarvam", 0)); return }
+        val p = phoneTts
+        if (p == null) {
+            setVoices(listOf("Loading phone voices…"), 0)
+            phoneTts = PhoneHindiTts(this) { tts, problem ->
+                ui.post {
+                    if (problem != null) { ttsStatus.text = "⚠ $problem"; ttsFixData.visibility = View.VISIBLE }
+                    if (freeEngine) setVoices(tts.voices.map { tts.label(it) }.ifEmpty { listOf("Default Hindi voice") }, prefs.getInt("tts_voice_phone", 0))
+                }
+            }
+        } else setVoices(p.voices.map { p.label(it) }.ifEmpty { listOf("Default Hindi voice") }, prefs.getInt("tts_voice_phone", 0))
+    }
 
     private fun openTts() {
         if (ttsText.text.isBlank()) ttsText.setText(prefs.getString("tts_text", null) ?: scriptBox.text)
         setup.visibility = View.GONE; ttsView.visibility = View.VISIBLE
+        applyEngine()
     }
 
     private fun saveTtsPrefs() = prefs.edit().putString("sarvam_key", ttsKey.text.toString().trim())
-        .putString("tts_text", ttsText.text.toString()).putInt("tts_voice", ttsVoice.selectedItemPosition)
+        .putInt("tts_engine", ttsEngine.selectedItemPosition)
+        .putString("tts_text", ttsText.text.toString())
+        .putInt(if (freeEngine) "tts_voice_phone" else "tts_voice_sarvam", ttsVoice.selectedItemPosition)
         .putString("tts_custom_voice", ttsCustomVoice.text.toString().trim())
-        .putInt("tts_model", ttsModel.selectedItemPosition).putInt("tts_pace", ttsPace.progress).apply()
+        .putInt("tts_model", ttsModel.selectedItemPosition).putInt("tts_pace", ttsPace.progress).putInt("tts_pitch", ttsPitch.progress).apply()
 
     private fun client(): SarvamTts? {
         val key = ttsKey.text.toString().trim()
@@ -411,11 +470,17 @@ class MainActivity : Activity() {
         return SarvamTts(key)
     }
 
-    /** Shows the Devanagari version so wrong words can be corrected before speaking. */
+    /** Shows the Devanagari version so wrong words can be corrected before speaking. Free engine = offline converter. */
     private fun convertScript() {
-        val c = client() ?: return; saveTtsPrefs()
+        saveTtsPrefs()
         val text = ttsText.text.toString()
         if (SarvamTts.hasDevanagari(text)) return toast("Script pehle se Devanagari mein hai")
+        if (freeEngine) {
+            ttsText.setText(HindiTransliterator.transliterate(text))
+            ttsStatus.text = "✅ Converted (free, offline). Galat shabd ho to yahin theek kar dijiye, phir Generate."
+            return
+        }
+        val c = client() ?: return
         ttsStatus.text = "Converting to Devanagari…"
         thread {
             val r = runCatching { c.transliterate(text) }
@@ -427,25 +492,36 @@ class MainActivity : Activity() {
     }
 
     private fun generateTts() {
-        val c = client() ?: return; saveTtsPrefs()
+        saveTtsPrefs()
         val text0 = ttsText.text.toString().trim()
         if (text0.isEmpty()) return toast("Script khaali hai")
-        val voice = ttsCustomVoice.text.toString().trim().ifEmpty { SarvamTts.VOICES[ttsVoice.selectedItemPosition].id }
+        val pace = pace(); val pitch = pitch()
+        if (freeEngine) {
+            val p = phoneTts ?: return toast("Phone voice is still loading…")
+            val voice = p.voices.getOrNull(ttsVoice.selectedItemPosition)
+            // Roman Hindi -> Devanagari first, so it is spoken as pure Hindi (not as English letters)
+            val text = if (SarvamTts.hasDevanagari(text0)) text0 else HindiTransliterator.transliterate(text0).also { ttsText.setText(it) }
+            ttsGo.isEnabled = false
+            thread {
+                try {
+                    val (audio, sr) = p.synthesize(text, voice, pace.toFloat(), pitch.toFloat()) { i, n -> ui.post { ttsStatus.text = "Generating voice… ${minOf(i + 1, n)}/$n" } }
+                    ui.post { ttsGo.isEnabled = true; ttsStatus.text = ""; openStudio(audio, sr, "Free Hindi voice ready: ${audio.size / sr} s.") }
+                } catch (e: Exception) { ui.post { ttsGo.isEnabled = true; ttsStatus.text = "✗ ${e.message}" } }
+            }
+            return
+        }
+        val c = client() ?: return
+        val voice = ttsCustomVoice.text.toString().trim().ifEmpty { SarvamTts.VOICES[ttsVoice.selectedItemPosition.coerceIn(0, SarvamTts.VOICES.size - 1)].id }
         val model = SarvamTts.MODELS[ttsModel.selectedItemPosition]
-        val pace = pace()
         ttsGo.isEnabled = false
         thread {
             try {
-                // Roman Hindi is converted first so it is spoken as pure Hindi, not read as English letters
                 val text = if (SarvamTts.hasDevanagari(text0)) text0 else {
                     ui.post { ttsStatus.text = "Converting Roman Hindi → देवनागरी…" }
                     c.transliterate(text0).also { t -> ui.post { ttsText.setText(t) } }
                 }
                 val (audio, sr) = c.speak(text, model, voice, pace, 0.0) { i, n -> ui.post { ttsStatus.text = "Generating voice… ${minOf(i + 1, n)}/$n" } }
-                ui.post {
-                    ttsGo.isEnabled = true; ttsStatus.text = ""
-                    openStudio(audio, sr, "Hindi voice ready: ${audio.size / sr} s (voice: $voice).")
-                }
+                ui.post { ttsGo.isEnabled = true; ttsStatus.text = ""; openStudio(audio, sr, "Hindi voice ready: ${audio.size / sr} s (voice: $voice).") }
             } catch (e: Exception) {
                 ui.post { ttsGo.isEnabled = true; ttsStatus.text = "✗ ${e.message}" }
             }
@@ -591,7 +667,7 @@ class MainActivity : Activity() {
         } else super.onBackPressed()
     }
 
-    override fun onDestroy() { super.onDestroy(); stopPreview(); player?.release(); engine?.stop() }
+    override fun onDestroy() { super.onDestroy(); phoneTts?.shutdown(); stopPreview(); player?.release(); engine?.stop() }
 
     private fun toast(t: String) { Toast.makeText(this, t, Toast.LENGTH_LONG).show() }
 }
